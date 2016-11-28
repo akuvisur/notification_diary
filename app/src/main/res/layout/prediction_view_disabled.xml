@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="6dp">
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ENABLE PREDICTIONS"
+        android:id="@+id/predictions_enable"
+        android:layout_gravity="center_horizontal"
+        android:enabled="false"
+        android:background="@color/colorPrimaryLight"
+        android:layout_marginBottom="6dp"
+        android:layout_marginTop="6dp"
+        android:padding="8dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/darker_gray"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="@string/predictions_disabled"
+        android:id="@+id/textView12" />
+</LinearLayout>

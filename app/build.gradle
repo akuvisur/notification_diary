@@ -1,0 +1,49 @@
+apply plugin: 'com.android.application'
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'com.google.gms.google-services'
+
+version = version_readable
+group = "com.awareframework"
+
+android {
+    compileSdkVersion 24
+    buildToolsVersion '24.0.3'
+
+    defaultConfig {
+        applicationId "com.aware.plugin.notificationdiary"
+        minSdkVersion 19
+        targetSdkVersion 24
+        versionCode 1
+        versionName "1.0"
+        multiDexEnabled true
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    dexOptions {
+        incremental false
+        javaMaxHeapSize "4g"
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+
+}
+
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    testCompile 'junit:junit:4.12'
+    compile "com.awareframework:aware-core:${aware_libs}@aar"
+    //compile 'com.theneura:android-sdk:4.0.8'
+    //compile 'com.android.support:appcompat-v7:24.2.1'
+    compile 'com.android.support:design:24.2.1'
+    compile 'com.android.support:multidex:1.0.1'
+    //compile 'com.google.firebase:firebase-core:9.2.1'
+    compile 'com.google.android.gms:play-services:9.0.0'
+
+}

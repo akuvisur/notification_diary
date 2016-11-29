@@ -124,11 +124,12 @@ public class MainTabs extends AppCompatActivity {
 
         AppManagement.init(context);
 
+        Aware.startAWARE();
+
         REQUIRED_PERMISSIONS.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_FINE_LOCATION);
-        REQUIRED_PERMISSIONS.add(Manifest.permission.BATTERY_STATS);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_WIFI_STATE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_NETWORK_STATE);
 
@@ -146,8 +147,9 @@ public class MainTabs extends AppCompatActivity {
                 permissions.putExtra(PermissionsHandler.EXTRA_REQUIRED_PERMISSIONS, REQUIRED_PERMISSIONS);
                 permissions.putExtra(PermissionsHandler.EXTRA_REDIRECT_ACTIVITY, getPackageName() + "/" + getClass().getName());
                 startActivity(permissions);
+                Log.d(TAG, "launching permissions handler");
+                break;
             }
-            break;
         }
 
         if (allPermissionsOk) {
@@ -155,8 +157,6 @@ public class MainTabs extends AppCompatActivity {
             new Handler().post(new Runnable() {
                 @Override
                 public void run() {
-                    Intent aware = new Intent(context, Aware.class);
-                    startService(aware);
                     Aware.setSetting(context, Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND, true);
                     Aware.setSetting(context, Applications.STATUS_AWARE_ACCESSIBILITY, true);
                     Aware.setSetting(context, Aware_Preferences.STATUS_APPLICATIONS, true);
@@ -417,15 +417,8 @@ public class MainTabs extends AppCompatActivity {
                 UnsyncedData helper = new UnsyncedData(context);
                 helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values);
 
-                if (remainingNotifications.get(0).application_package.equals(SKIP_PACKAGE)) {
-                    SKIP_COUNT++;
-                    Log.d(TAG, "skip++");
-
-                }
-                else {
-                    SKIP_COUNT = 0;
-                    Log.d(TAG, "skip reset");
-                }
+                if (remainingNotifications.get(0).application_package.equals(SKIP_PACKAGE)) { SKIP_COUNT++; }
+                else { SKIP_COUNT = 0; }
                 SKIP_PACKAGE = remainingNotifications.get(0).application_package;
 
                 remainingNotifications.remove(0);
@@ -451,6 +444,10 @@ public class MainTabs extends AppCompatActivity {
                 helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values);
 
                 remainingNotifications.remove(0);
+
+                SKIP_COUNT = 0;
+                Log.d(TAG, "skip reset");
+
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                 skip_all_button.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                 new Handler().postDelayed(new Runnable() {
@@ -513,6 +510,7 @@ public class MainTabs extends AppCompatActivity {
 
     private static void refreshDiaryFragment() {
         updateRemainingNotifications();
+
         if (remainingNotifications.size() == 0) {
             Log.d(TAG, "no more stuff");
             ((LinearLayout) curRootView.findViewById(R.id.diary_parent_view)).removeAllViews();
@@ -539,23 +537,24 @@ public class MainTabs extends AppCompatActivity {
         content_unsure_button.setChecked(false);
         timing_unsure_button.setChecked(false);
 
-        next_button.setEnabled(content_inputted && timing_inputted);
+        next_button.setEnabled(content_inputted & timing_inputted);
 
         notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_in_right));
 
         Log.d(TAG, "skipcount: " + SKIP_COUNT);
-        if (SKIP_COUNT >= 2 && !skip_included) {
-            button_container.addView(skipall_layout);
-            skip_included = true;
-        }
-        else  {
+        if (SKIP_COUNT < 2) {
             button_container.removeView(skipall_layout);
             skip_included = false;
+        }
+        else if (!skip_included) {
+            button_container.addView(skipall_layout);
+            skip_included = true;
         }
     }
 
     static List<UnsyncedNotification> remainingNotifications = new ArrayList<>();
     private static void updateRemainingNotifications() {
+        remainingNotifications = fetchRemainingNotifications();
         notifications_remaining.setText(remainingNotifications.size() +  " Notifications remaining.");
     }
 
@@ -570,6 +569,7 @@ public class MainTabs extends AppCompatActivity {
             if (n.application_package.equals(package_name)) removed.add(n);
         }
         remainingNotifications.removeAll(removed);
+        SKIP_COUNT = 0;
         refreshDiaryFragment();
     }
 

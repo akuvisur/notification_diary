@@ -40,6 +40,7 @@ public class TouchDetectService extends Applications {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        super.onAccessibilityEvent(event);
         Log.d(TAG, "source: " + event.getPackageName());
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_CLICKED) {
             Log.d(TAG, "click click");

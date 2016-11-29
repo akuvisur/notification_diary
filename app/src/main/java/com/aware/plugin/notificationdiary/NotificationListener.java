@@ -87,12 +87,12 @@ public class NotificationListener extends NotificationListenerService {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().equals(Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND)) {
-                Log.d(TAG, "Foreground app changed ");
                 SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
 
                 try {
-
-                    Cursor app_data = getContentResolver().query(Applications_Provider.Applications_Foreground.CONTENT_URI, null, null, null, "TIMESTAMP DESC LIMIT 1");
+                    // notification tray is com.android.systemui
+                    // ignore it
+                    Cursor app_data = getContentResolver().query(Applications_Provider.Applications_Foreground.CONTENT_URI, null, "package_name != ?", new String[]{"com.android.systemui"}, "TIMESTAMP DESC LIMIT 1");
                     if (app_data != null) {
                         if (app_data.moveToNext()) {
                             FOREGROUND_APP_NAME = app_data.getString(app_data.getColumnIndex(Applications_Provider.Applications_Foreground.APPLICATION_NAME));

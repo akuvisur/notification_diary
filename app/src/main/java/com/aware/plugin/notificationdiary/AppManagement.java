@@ -43,7 +43,7 @@ public class AppManagement {
         BLACKLIST.add("com.android.providers.downloads");
 
         // this application :)
-        BLACKLIST.add("com.aware.plugin.notificationdiary");
+        //BLACKLIST.add("com.aware.plugin.notificationdiary");
 
     }
 

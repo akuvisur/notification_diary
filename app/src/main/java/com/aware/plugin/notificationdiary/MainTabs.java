@@ -11,6 +11,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.support.v4.view.accessibility.AccessibilityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -77,6 +78,8 @@ public class MainTabs extends AppCompatActivity {
      */
     private ViewPager mViewPager;
     private static Toolbar toolbar;
+
+    private static boolean DEBUG = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -147,28 +150,23 @@ public class MainTabs extends AppCompatActivity {
             break;
         }
 
-        Aware.setSetting(this, Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND, false);
-        Aware.setSetting(this, Applications.STATUS_AWARE_ACCESSIBILITY, false);
-        Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, false);
-
-        Aware.stopBattery(this);
-        Aware.stopScreen(this);
-        Aware.stopNetwork(this);
-        Aware.stopLocations(this);
-
         if (allPermissionsOk) {
             Log.d(TAG, "All is good.");
-            Intent aware = new Intent(this, Aware.class);
-            startService(aware);
-            Aware.setSetting(this, Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND, true);
-            Aware.setSetting(this, Applications.STATUS_AWARE_ACCESSIBILITY, true);
-            Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true);
-            //Aware.startApplications(this);
-            startService(new Intent(this, TouchDetectService.class));
-            Aware.startBattery(this);
-            Aware.startScreen(this);
-            Aware.startNetwork(this);
-            Aware.startLocations(this);
+            new Handler().post(new Runnable() {
+                @Override
+                public void run() {
+                    Intent aware = new Intent(context, Aware.class);
+                    startService(aware);
+                    Aware.setSetting(context, Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND, true);
+                    Aware.setSetting(context, Applications.STATUS_AWARE_ACCESSIBILITY, true);
+                    Aware.setSetting(context, Aware_Preferences.STATUS_APPLICATIONS, true);
+                    Aware.startApplications(context);
+                    Aware.startBattery(context);
+                    Aware.startScreen(context);
+                    Aware.startNetwork(context);
+                    Aware.startLocations(context);
+                }
+            });
 
             isAccessibilityServiceActive(context);
 
@@ -419,8 +417,16 @@ public class MainTabs extends AppCompatActivity {
                 UnsyncedData helper = new UnsyncedData(context);
                 helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values);
 
-                if (remainingNotifications.get(0).application_package.equals(SKIP_PACKAGE)) SKIP_COUNT++;
-                else SKIP_COUNT = 0;
+                if (remainingNotifications.get(0).application_package.equals(SKIP_PACKAGE)) {
+                    SKIP_COUNT++;
+                    Log.d(TAG, "skip++");
+
+                }
+                else {
+                    SKIP_COUNT = 0;
+                    Log.d(TAG, "skip reset");
+                }
+                SKIP_PACKAGE = remainingNotifications.get(0).application_package;
 
                 remainingNotifications.remove(0);
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
@@ -446,6 +452,7 @@ public class MainTabs extends AppCompatActivity {
 
                 remainingNotifications.remove(0);
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
+                skip_all_button.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
@@ -459,7 +466,13 @@ public class MainTabs extends AppCompatActivity {
         skip_all_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                skipAll(SKIP_PACKAGE);
+                skip_all_button.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        skipAll(SKIP_PACKAGE);
+                    }
+                },400);
             }
         });
 
@@ -467,10 +480,37 @@ public class MainTabs extends AppCompatActivity {
 
         refreshDiaryFragment();
 
+        if (DEBUG) {
+            Button b = new Button(context);
+            b.setText("POST NOTIFICATION");
+            b.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            NotificationCompat.Builder builder = (NotificationCompat.Builder) new NotificationCompat.Builder(context)
+                                    .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                                    .setContentTitle("a"+System.currentTimeMillis())
+                                    .setContentText("asdf!" + System.currentTimeMillis());
+                            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+                            notificationManager.notify((int) (System.currentTimeMillis() % 12345), builder.build());
+                        }
+                    },2000);
+
+                    Intent startMain = new Intent(Intent.ACTION_MAIN);
+                    startMain.addCategory(Intent.CATEGORY_HOME);
+                    startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(startMain);
+                }
+            });
+            button_container.addView(b);
+        }
+
         return rootView;
     }
 
-    // TODO update this method to reset all fields to remainingNotifs.get(0)
     private static void refreshDiaryFragment() {
         updateRemainingNotifications();
         if (remainingNotifications.size() == 0) {
@@ -503,7 +543,8 @@ public class MainTabs extends AppCompatActivity {
 
         notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_in_right));
 
-        if (SKIP_COUNT >= 3 && !skip_included) {
+        Log.d(TAG, "skipcount: " + SKIP_COUNT);
+        if (SKIP_COUNT >= 2 && !skip_included) {
             button_container.addView(skipall_layout);
             skip_included = true;
         }
@@ -524,7 +565,12 @@ public class MainTabs extends AppCompatActivity {
     }
 
     private static void skipAll(String package_name) {
-
+        ArrayList<UnsyncedNotification> removed = new ArrayList<>();
+        for (UnsyncedNotification n : remainingNotifications) {
+            if (n.application_package.equals(package_name)) removed.add(n);
+        }
+        remainingNotifications.removeAll(removed);
+        refreshDiaryFragment();
     }
 
     public static View generatePredictionView(final LayoutInflater inflater, final ViewGroup container) {

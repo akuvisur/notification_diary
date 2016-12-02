@@ -19,6 +19,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:replace="android:icon, android:theme">
+
         <service
             android:name=".NotificationListener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
@@ -26,7 +27,6 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-
         <service android:name=".ActivityService" />
 
         <activity
@@ -43,7 +43,8 @@
         <service
             android:name=".ContentAnalysisService"
             android:enabled="true"
-            android:exported="true"/>
+            android:exported="true" />
+
         <provider
             android:name=".Providers.Provider"
             android:authorities="${applicationId}.provider.notificationdiary"
@@ -51,6 +52,10 @@
             android:readPermission="com.aware.READ_CONTEXT_DATA"
             android:writePermission="com.aware.WRITE_CONTEXT_DATA" />
 
+        <service
+            android:name=".Predictions.PredictionService"
+            android:enabled="true"
+            android:exported="true"></service>
     </application>
 
 </manifest>

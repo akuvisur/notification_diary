@@ -44,4 +44,5 @@ dependencies {
     compile 'com.android.support:multidex:1.0.1'
     compile 'com.google.android.gms:play-services:9.0.0'
     compile 'nz.ac.waikato.cms.weka:weka-dev:3.7.10'
+    compile 'com.akexorcist:RoundCornerProgressBar:2.0.3'
 }

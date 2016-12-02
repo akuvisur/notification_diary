@@ -8,6 +8,9 @@ import android.text.format.DateFormat;
 
 //import com.neura.sdk.object.Permission;
 
+import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
+import com.aware.plugin.notificationdiary.Providers.WordBins;
+
 import java.util.ArrayList;
 import java.util.Calendar;
 
@@ -67,6 +70,20 @@ public class AppManagement {
         cal.setTimeInMillis(time*1000);
         String date = DateFormat.format("kk:mm MMM d", cal).toString();
         return date;
+    }
+
+    // extract word bins
+    static ArrayList<Cluster> clusters;
+    public static ArrayList<Cluster> extractClusters(Context c) {
+        WordBins helper = new WordBins(c);
+        clusters = helper.extractClusters(c);
+        helper.close();
+        return clusters;
+    }
+
+    public static ArrayList<Cluster> getClusters(Context c) {
+        if (clusters == null) extractClusters(c);
+        return clusters;
     }
 
     // locations

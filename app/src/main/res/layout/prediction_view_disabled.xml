@@ -27,4 +27,7 @@
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:text="@string/predictions_disabled"
         android:id="@+id/textView12" />
+
+        <include layout="@layout/classifier_progress"/>
+
 </LinearLayout>

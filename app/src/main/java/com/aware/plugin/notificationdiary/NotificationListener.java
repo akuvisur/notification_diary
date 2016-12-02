@@ -51,17 +51,7 @@ public class NotificationListener extends NotificationListenerService {
 
     public static boolean connected = false;
 
-    private static Context context;
-
-    BroadcastReceiver deleteReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "received something " + intent.getAction());
-            if (intent.getAction().equals("NOTIFICATION_DELETED")) {
-                Log.d(TAG, "Package of deleted: " + intent.getExtras().get("package"));
-            }
-        }
-    };
+    private Context context;
 
     String FOREGROUND_APP_NAME = "";
     String FOREGROUND_APP_PACKAGE = "";
@@ -84,8 +74,10 @@ public class NotificationListener extends NotificationListenerService {
 
     SensorReceiver ar;
     private class SensorReceiver extends BroadcastReceiver {
+        private Context context = null;
         @Override
-        public void onReceive(Context context, Intent intent) {
+        public void onReceive(Context c, Intent intent) {
+            if (context == null) context = c;
             if (intent.getAction().equals(Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND)) {
                 SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
 
@@ -188,13 +180,15 @@ public class NotificationListener extends NotificationListenerService {
     @Override
     public int onStartCommand(Intent intent, int flags, int something) {
         Log.d(TAG, "onStartCommand");
+        context = this;
+
         String notificationListenerString = Settings.Secure.getString(this.getContentResolver(),"enabled_notification_listeners");
         //Check notifications access permission
         if (notificationListenerString == null || !notificationListenerString.contains(getPackageName()))
         {
             //The notification access has not acquired yet!
             Log.d(TAG, "no access");
-            requestPermission();
+            requestPermission(this);
         }else{
             //Your application has access to the notifications
             Log.d(TAG, "has access");
@@ -235,13 +229,13 @@ public class NotificationListener extends NotificationListenerService {
         unregisterReceiver(ar);
     }
 
-    public static void requestPermission() {
+    public static void requestPermission(Context c) {
         Log.d(TAG, "requesting notif permission");
         Intent requestIntent = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
         requestIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        if (context != null) {
-            context.startActivity(requestIntent);
-            Toast t = Toast.makeText(context, "Please allow access to notifications for full functionality", Toast.LENGTH_LONG);
+        if (c != null) {
+            c.startActivity(requestIntent);
+            Toast t = Toast.makeText(c, "Please allow access to notifications for full functionality", Toast.LENGTH_LONG);
             t.show();
         }
     }
@@ -259,7 +253,7 @@ public class NotificationListener extends NotificationListenerService {
     @Override
     public void onListenerDisconnected() {
         connected = false;
-        requestPermission();
+        requestPermission(this);
     }
 
     //private static HashMap<MapKey, ArrayList<String>> arrivedNotifications = new HashMap<>();

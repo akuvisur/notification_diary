@@ -44,7 +44,7 @@ public class ClusterGenerator {
         Cluster cluster;
         allnodes:
         for (int i = nodes.size()-1; i >= 0; i--) {
-            Log.d(TAG, "clustering for node: " + nodes.get(i).toString());
+            //Log.d(TAG, "clustering for node: " + nodes.get(i).toString());
             for (Cluster c : clusters) {
                 // check if current node shares edge with existing centroid
                 for (Edge e : c.centroid.edges) {
@@ -129,11 +129,6 @@ public class ClusterGenerator {
             if (nodes.isEmpty()) break;
         }
 
-        Log.d(TAG, "created following clusters");
-        for (Cluster c : clusters) {
-            Log.d(TAG, c.toString());
-        }
-
     }
 
     private void orderNodes() {
@@ -147,5 +142,9 @@ public class ClusterGenerator {
                 return 0;
             }
         });
+    }
+
+    public ArrayList<Cluster> getClusters() {
+        return clusters;
     }
 }

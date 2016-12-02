@@ -110,6 +110,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         sqLiteDatabase.execSQL("DROP TABLE IF EXISTS " + DATABASE_NAME);
         onCreate(sqLiteDatabase);
     }
+
     SQLiteDatabase database;
     public void init() {
         if (database == null) {database = this.getWritableDatabase();}

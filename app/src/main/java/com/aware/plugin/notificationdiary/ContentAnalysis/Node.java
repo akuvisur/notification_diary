@@ -43,6 +43,8 @@ public class Node {
         return false;
     }
 
+    public String getValue() {return value;}
+
     @Override
     public String toString() {
         return "Node: " + value + " (" + edges.size() + ")";

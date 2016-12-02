@@ -4,9 +4,11 @@ import android.Manifest;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Handler;
@@ -36,12 +38,14 @@ import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.RatingBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.akexorcist.roundcornerprogressbar.RoundCornerProgressBar;
 import com.aware.Applications;
 import com.aware.Aware;
 import com.aware.Aware_Preferences;
@@ -66,10 +70,11 @@ public class MainTabs extends AppCompatActivity {
      */
     private SectionsPagerAdapter mSectionsPagerAdapter;
 
-    private static Context context;
+    private Context context;
 
     private static ArrayList<String> REQUIRED_PERMISSIONS = new ArrayList<>();
 
+    // when uses
     private static String SKIP_PACKAGE = "";
     private static Integer SKIP_COUNT = 0;
 
@@ -77,7 +82,7 @@ public class MainTabs extends AppCompatActivity {
      * The {@link ViewPager} that will host the section contents.
      */
     private ViewPager mViewPager;
-    private static Toolbar toolbar;
+    private Toolbar toolbar;
 
     private static boolean DEBUG = true;
 
@@ -90,7 +95,7 @@ public class MainTabs extends AppCompatActivity {
         setSupportActionBar(toolbar);
         // Create the adapter that will return a fragment for each of the three
         // primary sections of the activity.
-        mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
+        mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager(), this, this);
 
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.container);
@@ -122,7 +127,7 @@ public class MainTabs extends AppCompatActivity {
 
         context = this;
 
-        AppManagement.init(context);
+        AppManagement.init(this);
 
         Aware.startAWARE();
 
@@ -133,12 +138,12 @@ public class MainTabs extends AppCompatActivity {
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_WIFI_STATE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_NETWORK_STATE);
 
-        PackageManager pm = context.getPackageManager();
+        PackageManager pm = getPackageManager();
         boolean allPermissionsOk = true;
         for (String perm : REQUIRED_PERMISSIONS) {
             int hasPerm = pm.checkPermission(
                     perm,
-                    context.getPackageName());
+                    getPackageName());
             Log.d(TAG, "permission: " + perm + " " + hasPerm);
             if (hasPerm != PackageManager.PERMISSION_GRANTED) {
                 allPermissionsOk = false;
@@ -154,7 +159,7 @@ public class MainTabs extends AppCompatActivity {
 
         if (allPermissionsOk) {
             Log.d(TAG, "All is good.");
-            new Handler().post(new Runnable() {
+            new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
                     Aware.setSetting(context, Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND, true);
@@ -165,22 +170,20 @@ public class MainTabs extends AppCompatActivity {
                     Aware.startScreen(context);
                     Aware.startNetwork(context);
                     Aware.startLocations(context);
+
+                    isAccessibilityServiceActive(context);
+
+                    SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
+                    int test_count = sp.getInt(AppManagement.TEST_COUNT, 0);
+                    if (test_count <= 5) {
+                        Toast.makeText(context, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
+                    }
+
+                    Intent service = new Intent(context, NotificationListener.class);
+                    startService(service);
                 }
-            });
+            }, 500);
 
-            isAccessibilityServiceActive(context);
-
-            SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
-            int test_count = sp.getInt(AppManagement.TEST_COUNT, 0);
-            if (test_count <= 5) {
-                Toast.makeText(this, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
-            }
-
-            Intent service = new Intent(this, NotificationListener.class);
-            startService(service);
-
-            //Intent touchService = new Intent(this, TouchDetectService.class);
-            //startService(touchService);
         }
         else {
             Aware.setSetting(this, Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND, false);
@@ -194,6 +197,15 @@ public class MainTabs extends AppCompatActivity {
             Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
         }
 
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        try {
+            if (rec != null) unregisterReceiver(rec);
+        }
+        catch (Exception e) {e.printStackTrace();}
     }
 
     @Override
@@ -230,24 +242,24 @@ public class MainTabs extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    static TextView notifications_remaining;
+    TextView notifications_remaining;
 
-    static RelativeLayout notification_layout;
+    RelativeLayout notification_layout;
 
-    static ToggleButton content_unsure_button;
-    static ToggleButton timing_unsure_button;
-    static RatingBar content_value;
-    static RatingBar timing_value;
-    static Button content_help_button;
-    static Button timing_help_button;
-    static Button skip_button;
-    static Button next_button;
-    static TextView notification_title;
-    static TextView notification_app_name;
-    static TextView notification_message;
-    static TextView notification_timestamp;
+    ToggleButton content_unsure_button;
+    ToggleButton timing_unsure_button;
+    RatingBar content_value;
+    RatingBar timing_value;
+    Button content_help_button;
+    Button timing_help_button;
+    Button skip_button;
+    Button next_button;
+    TextView notification_title;
+    TextView notification_app_name;
+    TextView notification_message;
+    TextView notification_timestamp;
 
-    static Button skip_all_button;
+    Button skip_all_button;
 
     private static int curFragmentNumber = 1;
 
@@ -259,16 +271,26 @@ public class MainTabs extends AppCompatActivity {
         private static final String ARG_SECTION_NUMBER = "section_number";
         private static int curSectionNumber;
 
+        private MainTabs activity;
+        private Context context;
+
         public PlaceholderFragment() {
         }
+
+        public void setContext(Context c) {this.context = c;}
+
+        public void setActivity(MainTabs a) {this.activity = a;}
 
         /**
          * Returns a new instance of this fragment for the given section
          * number.
          */
-        public static PlaceholderFragment newInstance(int sectionNumber) {
+        public static PlaceholderFragment newInstance(int sectionNumber, Context c, MainTabs a) {
             curSectionNumber = sectionNumber;
             PlaceholderFragment fragment = new PlaceholderFragment();
+            fragment.setContext(c);
+            fragment.setActivity(a);
+
             Bundle args = new Bundle();
             args.putInt(ARG_SECTION_NUMBER, sectionNumber);
             fragment.setArguments(args);
@@ -282,13 +304,13 @@ public class MainTabs extends AppCompatActivity {
             switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
                 // Diary view
                 case 1:
-                    return generateDiaryView(inflater, container);
+                    return activity.generateDiaryView(context, inflater, container);
                 case 2:
-                    return generatePredictionView(inflater, container);
+                    return activity.generatePredictionView(context,inflater, container);
                 case 3:
-                    return generateHelpView(inflater, container);
+                    return activity.generateHelpView(context,inflater, container);
                 default:
-                    return generateDiaryView(inflater, container);
+                    return activity.generateDiaryView(context, inflater, container);
             }
 
         }
@@ -300,20 +322,14 @@ public class MainTabs extends AppCompatActivity {
     private static boolean skip_included = false;
 
     private static View emptyView;
-    private static View curRootView;
-    private static RelativeLayout button_container;
-    private static LinearLayout skipall_layout;
+    private View curRootView;
+    private RelativeLayout button_container;
+    private LinearLayout skipall_layout;
 
-    private static LayoutInflater sharedInflater;
-    private static ViewGroup sharedContainer;
-
-    public static View generateDiaryView(final LayoutInflater inflater, final ViewGroup container) {
+    public View generateDiaryView(Context c, final LayoutInflater inflater, final ViewGroup container) {
         Log.d(TAG, "Generating new diary view");
 
-        sharedInflater = inflater;
-        sharedContainer = container;
-
-        remainingNotifications = fetchRemainingNotifications();
+        remainingNotifications = fetchRemainingNotifications(c);
         emptyView = inflater.inflate(R.layout.diary_view_empty, container, false);
         if (remainingNotifications.size() == 0) {
             return emptyView;
@@ -409,7 +425,7 @@ public class MainTabs extends AppCompatActivity {
         next_button = (Button) rootView.findViewById(R.id.diary_next);
 
         skip_button = (Button) rootView.findViewById(R.id.diary_skip);
-        skip_button.setOnClickListener(new View.OnClickListener() {
+        skip_button.setOnClickListener(new ContextButtonListener(c) {
             @Override
             public void onClick(View view) {
                 ContentValues updated_values = new ContentValues();
@@ -426,14 +442,14 @@ public class MainTabs extends AppCompatActivity {
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        refreshDiaryFragment();
+                        refreshDiaryFragment(context);
                     }
                 }, 400);
             }
         });
 
         next_button = (Button) rootView.findViewById(R.id.diary_next);
-        next_button.setOnClickListener(new View.OnClickListener() {
+        next_button.setOnClickListener(new ContextButtonListener(c) {
             @Override
             public void onClick(View view) {
                 ContentValues updated_values = new ContentValues();
@@ -456,21 +472,21 @@ public class MainTabs extends AppCompatActivity {
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        refreshDiaryFragment();
+                        refreshDiaryFragment(context);
                     }
                 }, 400);
             }
         });
 
         skip_all_button = (Button) rootView.findViewById(R.id.diary_skip_all);
-        skip_all_button.setOnClickListener(new View.OnClickListener() {
+        skip_all_button.setOnClickListener(new ContextButtonListener(context) {
             @Override
             public void onClick(View view) {
                 skip_all_button.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        skipAll(SKIP_PACKAGE);
+                        skipAll(SKIP_PACKAGE, context);
                     }
                 },400);
             }
@@ -478,7 +494,7 @@ public class MainTabs extends AppCompatActivity {
 
         curRootView = rootView;
 
-        refreshDiaryFragment();
+        refreshDiaryFragment(c);
 
         if (DEBUG) {
             Button b = new Button(context);
@@ -511,8 +527,8 @@ public class MainTabs extends AppCompatActivity {
         return rootView;
     }
 
-    private static void refreshDiaryFragment() {
-        updateRemainingNotifications();
+    private void refreshDiaryFragment(Context c) {
+        updateRemainingNotifications(c);
 
         if (remainingNotifications.size() == 0) {
             Log.d(TAG, "no more stuff");
@@ -557,47 +573,75 @@ public class MainTabs extends AppCompatActivity {
     }
 
     static List<UnsyncedNotification> remainingNotifications = new ArrayList<>();
-    private static void updateRemainingNotifications() {
-        remainingNotifications = fetchRemainingNotifications();
+    private void updateRemainingNotifications(Context c) {
+        remainingNotifications = fetchRemainingNotifications(c);
         notifications_remaining.setText(remainingNotifications.size() +  " Notifications remaining.");
     }
 
-    private static List<UnsyncedNotification> fetchRemainingNotifications() {
-        UnsyncedData helper = new UnsyncedData(context);
+    private List<UnsyncedNotification> fetchRemainingNotifications(Context c) {
+        UnsyncedData helper = new UnsyncedData(c);
         return helper.getUnlabeledNotifications();
     }
 
-    private static void skipAll(String package_name) {
+    private void skipAll(String package_name, Context c) {
         ArrayList<UnsyncedNotification> removed = new ArrayList<>();
         for (UnsyncedNotification n : remainingNotifications) {
             if (n.application_package.equals(package_name)) {
                 removed.add(n);
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
-                UnsyncedData helper = new UnsyncedData(context);
+                UnsyncedData helper = new UnsyncedData(c);
                 helper.updateEntry((int) (n.sqlite_row_id), updated_values);
             }
         }
         remainingNotifications.removeAll(removed);
         SKIP_COUNT = 0;
-        refreshDiaryFragment();
+        refreshDiaryFragment(c);
     }
 
-    public static View generatePredictionView(final LayoutInflater inflater, final ViewGroup container) {
-        sharedInflater = inflater;
-        sharedContainer = container;
+    Button enable_predictions;
+    RoundCornerProgressBar classifier_progress;
+    TextView classifier_progress_text;
+    ClassifierProgressReceiver rec;
+    public View generatePredictionView(final Context c, final LayoutInflater inflater, final ViewGroup container) {
 
         final View rootView = inflater.inflate(R.layout.prediction_view_disabled, container, false);
 
-        Intent srvIntent = new Intent(context, ContentAnalysisService.class);
-        context.startService(srvIntent);
+        enable_predictions = (Button) rootView.findViewById(R.id.predictions_enable);
+        enable_predictions.setOnClickListener(new ContextButtonListener(c) {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(c, "content analysis", Toast.LENGTH_SHORT);
+                new Handler().postDelayed(new ContextRunnable(c) {
+                    @Override
+                    public void run() {
+                        rec = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c);
+                        IntentFilter filt = new IntentFilter();
+                        filt.addAction(ClassifierProgressReceiver.ACTION);
+                        c.registerReceiver(rec, filt);
+
+                        classifier_progress.setVisibility(View.VISIBLE);
+                        classifier_progress_text.setVisibility(View.VISIBLE);
+
+                        Intent srvIntent = new Intent(c, ContentAnalysisService.class);
+                        c.startService(srvIntent);
+                    }
+                }, 500);
+            }
+        });
+        UnsyncedData helper = new UnsyncedData(c);
+        if (helper.getNumOfTrainingData() > 100) enable_predictions.setEnabled(true);
+
+        classifier_progress = (RoundCornerProgressBar) rootView.findViewById(R.id.classifier_progress);
+        classifier_progress.setVisibility(View.INVISIBLE);
+
+        classifier_progress_text = (TextView) rootView.findViewById(R.id.classifier_progress_text);
+        classifier_progress.setVisibility(View.INVISIBLE);
 
         return rootView;
     }
 
-    public static View generateHelpView(final LayoutInflater inflater, final ViewGroup container) {
-        sharedInflater = inflater;
-        sharedContainer = container;
+    public View generateHelpView(Context context, final LayoutInflater inflater, final ViewGroup container) {
 
         final View rootView = inflater.inflate(R.layout.help_view, container, false);
 
@@ -610,16 +654,20 @@ public class MainTabs extends AppCompatActivity {
      * one of the sections/tabs/pages.
      */
     public class SectionsPagerAdapter extends FragmentPagerAdapter {
+        private Context context;
+        private MainTabs activity;
 
-        public SectionsPagerAdapter(FragmentManager fm) {
+        public SectionsPagerAdapter(FragmentManager fm, Context c, MainTabs a) {
             super(fm);
+            context = c;
+            activity = a;
         }
 
         @Override
         public Fragment getItem(int position) {
             // getItem is called to instantiate the fragment for the given page.
             // Return a PlaceholderFragment (defined as a static inner class below).
-            curFragment = PlaceholderFragment.newInstance(position + 1);
+            curFragment = PlaceholderFragment.newInstance(position + 1, context, activity);
             return curFragment;
         }
 
@@ -644,7 +692,7 @@ public class MainTabs extends AppCompatActivity {
     }
 
 
-    public static boolean isAccessibilityServiceActive(Context c) {
+    public static boolean isAccessibilityServiceActive(final Context c) {
         if (!isAccessibilityEnabled(c)) {
             NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(c);
             mBuilder.setSmallIcon(R.drawable.ic_notif_icon);
@@ -666,11 +714,11 @@ public class MainTabs extends AppCompatActivity {
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    Intent restart = new Intent(context, MainTabs.class);
-                    context.startActivity(restart);
+                    Intent restart = new Intent(c, MainTabs.class);
+                    c.startActivity(restart);
                 }
             }, 30000);
-            Toast.makeText(context, "Please enable accessibility services. Automatically restarting application in 30 seconds..", Toast.LENGTH_LONG).show();
+            Toast.makeText(c, "Please enable accessibility services. Automatically restarting application in 30 seconds..", Toast.LENGTH_LONG).show();
             return false;
         }
         return true;

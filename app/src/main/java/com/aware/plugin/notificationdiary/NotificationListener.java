@@ -221,24 +221,17 @@ public class NotificationListener extends NotificationListenerService {
         sensorFilter.addAction(Network.ACTION_AWARE_INTERNET_UNAVAILABLE);
 
         registerReceiver(ar, sensorFilter);
-        //IntentFilter ifilt = new IntentFilter();
-        //ifilt.addAction("NOTIFICATION_DELETED");
-        //registerReceiver(deleteReceiver, ifilt);
 
         Intent activityService = new Intent(this, ActivityService.class);
         startService(activityService);
 
         // initialize google activity recognition
         new ActivityApiClient(this);
-
-        // initialize neura location sensing
-        //new NeuraApiConnector(this);
     }
 
 
     @Override
     public void onDestroy() {
-        unregisterReceiver(deleteReceiver);
         unregisterReceiver(ar);
     }
 
@@ -260,13 +253,11 @@ public class NotificationListener extends NotificationListenerService {
 
     @Override
     public void onListenerConnected() {
-        Log.d(TAG, "seppo connected");
         connected = true;
     }
 
     @Override
     public void onListenerDisconnected() {
-        Log.d(TAG, "seppo disconnected");
         connected = false;
         requestPermission();
     }

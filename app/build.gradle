@@ -17,16 +17,18 @@ android {
         versionName "1.0"
         multiDexEnabled true
     }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
     dexOptions {
-        incremental false
         javaMaxHeapSize "4g"
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_7
         targetCompatibility JavaVersion.VERSION_1_7
@@ -37,10 +39,9 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    testCompile 'junit:junit:4.12'
     compile "com.awareframework:aware-core:${aware_libs}@aar"
     compile 'com.android.support:design:24.2.1'
     compile 'com.android.support:multidex:1.0.1'
     compile 'com.google.android.gms:play-services:9.0.0'
-
+    compile 'nz.ac.waikato.cms.weka:weka-dev:3.7.10'
 }

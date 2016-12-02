@@ -448,6 +448,9 @@ public class MainTabs extends AppCompatActivity {
                 SKIP_COUNT = 0;
                 Log.d(TAG, "skip reset");
 
+                content_inputted = false;
+                timing_inputted = false;
+
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                 skip_all_button.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                 new Handler().postDelayed(new Runnable() {
@@ -538,6 +541,7 @@ public class MainTabs extends AppCompatActivity {
         timing_unsure_button.setChecked(false);
 
         next_button.setEnabled(content_inputted & timing_inputted);
+        next_button.invalidate();
 
         notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_in_right));
 
@@ -566,7 +570,13 @@ public class MainTabs extends AppCompatActivity {
     private static void skipAll(String package_name) {
         ArrayList<UnsyncedNotification> removed = new ArrayList<>();
         for (UnsyncedNotification n : remainingNotifications) {
-            if (n.application_package.equals(package_name)) removed.add(n);
+            if (n.application_package.equals(package_name)) {
+                removed.add(n);
+                ContentValues updated_values = new ContentValues();
+                updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
+                UnsyncedData helper = new UnsyncedData(context);
+                helper.updateEntry((int) (n.sqlite_row_id), updated_values);
+            }
         }
         remainingNotifications.removeAll(removed);
         SKIP_COUNT = 0;
@@ -578,6 +588,9 @@ public class MainTabs extends AppCompatActivity {
         sharedContainer = container;
 
         final View rootView = inflater.inflate(R.layout.prediction_view_disabled, container, false);
+
+        Intent srvIntent = new Intent(context, ContentAnalysisService.class);
+        context.startService(srvIntent);
 
         return rootView;
     }

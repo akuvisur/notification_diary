@@ -35,7 +35,7 @@ public class Provider extends ContentProvider {
     //Add here your database table names, as many as you need
     public static final String DB_TBL_TEMPLATE = "table_one";
 
-    //For each table, add two indexes: DIR and ITEM. The index needs to always increment. Next one is 3, and so on.
+    //For each table, add two indexes: DIR and ITEM. The index needs to always incrementWeight. Next one is 3, and so on.
     private static final int TABLE_ONE_DIR = 1;
     private static final int TABLE_ONE_ITEM = 2;
 

@@ -39,7 +39,7 @@ public class ContextCard implements IContextCard {
     }
 
     private void updateUI() {
-        //increment counter
+        //incrementWeight counter
         counter++;
 
         //update UI

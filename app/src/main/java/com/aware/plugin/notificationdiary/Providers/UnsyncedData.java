@@ -176,4 +176,38 @@ public class UnsyncedData extends SQLiteOpenHelper {
         if (cursor != null) {while (cursor.moveToNext()) {count++;} cursor.close();}
         return count;
     }
+
+    public ArrayList<NotificationText> getAllNotificationText() {
+        init();
+        ArrayList<NotificationText> result = new ArrayList<>();
+        Cursor cursor = database.query(DATABASE_NAME,
+                new String[]{Notifications_Table.title, Notifications_Table.message},
+                Notifications_Table.interaction_type + "=? OR " + Notifications_Table.interaction_type + "=?",
+                new String[]{AppManagement.INTERACTION_TYPE_CLICK, AppManagement.INTERACTION_TYPE_DISMISS},
+                null, null, null);
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                result.add(new NotificationText(
+                    cursor.getString(cursor.getColumnIndex(Notifications_Table.title)).toLowerCase().replaceAll("^[a-zA-Z0-9äöüÄÖÜ]", " "),
+                    cursor.getString(cursor.getColumnIndex(Notifications_Table.message)).toLowerCase().replaceAll("^[a-zA-Z0-9äöüÄÖÜ]", " ")
+                ));
+            }
+            cursor.close();
+        }
+
+        return result;
+    }
+
+    public class NotificationText {
+        public String title;
+        public String contents;
+        public NotificationText(String title, String contents) {
+
+            this.title = title;
+            this.contents = contents;
+        }
+
+    }
+
 }

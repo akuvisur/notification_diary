@@ -17,6 +17,10 @@
 The ENABLE PREDICTIONS -button will be enabled once these conditions are met.
     </string>
 
+    <string name="predictions_enabled">
+"Predictions now enabled."
+    </string>
+
     <string name="helpview_generic">
 "This application logs the notifications you receive on your device. You are then asked to specify the importance of the notification CONTENTS and whether the notification was presented at an appropriate TIME for you.\r\n
 This is performed for all notifications that you have DISMISSED (swiped). All notifications you CLICK are assumed to be of importance to you.\r\n
@@ -37,5 +41,9 @@ The predictions use machine learning to predict whether a notification should be
 After the predictions are ENABLED, the notifications hidden by the application will be shown in the predictions tab, and you can give further validation that the items were either correctly or incorrectly hidden.
 "
     </string>
+
+    <string name="title_activity_prediction">PredictionActivity</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
 
 </resources>

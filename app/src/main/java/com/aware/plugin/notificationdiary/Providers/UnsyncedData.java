@@ -165,6 +165,53 @@ public class UnsyncedData extends SQLiteOpenHelper {
         return result;
     }
 
+
+    public ArrayList<UnsyncedNotification> getLabeledNotifications() {
+        init();
+        ArrayList<UnsyncedNotification> result = new ArrayList<>();
+
+        // get all that are EITHER 1) labeled and dismissed or 2) clicked
+        Cursor cursor = database.query(DATABASE_NAME,
+                null,
+                UnsyncedData.Notifications_Table.seen + "=? AND ((" + Notifications_Table.labeled + "=? AND " +
+                        Notifications_Table.interaction_type + "=?) OR " + Notifications_Table.interaction_type + "=?)",
+                new String[]{"1", "1", AppManagement.INTERACTION_TYPE_DISMISS, AppManagement.INTERACTION_TYPE_CLICK},
+                null, null,
+                UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
+
+        if (cursor != null) {
+            if (!cursor.moveToFirst()) Log.d(TAG, "empty cursor");
+            while (cursor.moveToNext()) {
+                UnsyncedNotification u = new UnsyncedNotification();
+                u.message = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.message));
+                u.title = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.title));
+                u.application_package = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.application_package));
+                u.interaction_type = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
+                u.activity = cursor.getString(cursor.getColumnIndex(Notifications_Table.activity));
+                u.battery_level = cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level));
+                u.foreground_application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package));
+                u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
+                u.wifi_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability));
+                u.network_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability));
+                u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
+                u.screen_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode));
+                u.ringer_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode));
+                u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));
+                u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
+                u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
+                result.add(u);
+            }
+            cursor.close();
+        }
+        else {
+            Log.d(TAG, "cursor was null");
+        }
+        Log.d(TAG, "done: " + result.size());
+        database.close();
+        return result;
+    }
+
+
     public int getNumOfTrainingData() {
         init();
         Cursor cursor = database.query(DATABASE_NAME,

@@ -74,10 +74,6 @@ public class MainTabs extends AppCompatActivity {
 
     private static ArrayList<String> REQUIRED_PERMISSIONS = new ArrayList<>();
 
-    // when uses
-    private static String SKIP_PACKAGE = "";
-    private static Integer SKIP_COUNT = 0;
-
     /**
      * The {@link ViewPager} that will host the section contents.
      */
@@ -118,11 +114,8 @@ public class MainTabs extends AppCompatActivity {
                         break;
                 }
             }
-
             @Override
             public void onPageScrollStateChanged(int state) {}
-
-
         });
 
         context = this;
@@ -196,7 +189,6 @@ public class MainTabs extends AppCompatActivity {
             Aware.stopLocations(this);
             Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
         }
-
     }
 
     @Override
@@ -312,16 +304,13 @@ public class MainTabs extends AppCompatActivity {
                 default:
                     return activity.generateDiaryView(context, inflater, container);
             }
-
         }
-
     }
 
     private static boolean content_inputted = false;
     private static boolean timing_inputted = false;
-    private static boolean skip_included = false;
 
-    private static View emptyView;
+    private View emptyView;
     private View curRootView;
     private RelativeLayout button_container;
     private LinearLayout skipall_layout;
@@ -433,10 +422,6 @@ public class MainTabs extends AppCompatActivity {
                 UnsyncedData helper = new UnsyncedData(context);
                 helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values);
 
-                if (remainingNotifications.get(0).application_package.equals(SKIP_PACKAGE)) { SKIP_COUNT++; }
-                else { SKIP_COUNT = 0; }
-                SKIP_PACKAGE = remainingNotifications.get(0).application_package;
-
                 remainingNotifications.remove(0);
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
                 new Handler().postDelayed(new Runnable() {
@@ -461,14 +446,10 @@ public class MainTabs extends AppCompatActivity {
 
                 remainingNotifications.remove(0);
 
-                SKIP_COUNT = 0;
-                Log.d(TAG, "skip reset");
-
                 content_inputted = false;
                 timing_inputted = false;
 
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
-                skip_all_button.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
@@ -482,11 +463,11 @@ public class MainTabs extends AppCompatActivity {
         skip_all_button.setOnClickListener(new ContextButtonListener(context) {
             @Override
             public void onClick(View view) {
-                skip_all_button.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
+                notification_layout.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        skipAll(SKIP_PACKAGE, context);
+                        skipAll(remainingNotifications.get(0).application_package, context);
                     }
                 },400);
             }
@@ -560,16 +541,6 @@ public class MainTabs extends AppCompatActivity {
         next_button.invalidate();
 
         notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_in_right));
-
-        Log.d(TAG, "skipcount: " + SKIP_COUNT);
-        if (SKIP_COUNT < 2) {
-            button_container.removeView(skipall_layout);
-            skip_included = false;
-        }
-        else if (!skip_included) {
-            button_container.addView(skipall_layout);
-            skip_included = true;
-        }
     }
 
     static List<UnsyncedNotification> remainingNotifications = new ArrayList<>();
@@ -595,7 +566,6 @@ public class MainTabs extends AppCompatActivity {
             }
         }
         remainingNotifications.removeAll(removed);
-        SKIP_COUNT = 0;
         refreshDiaryFragment(c);
     }
 
@@ -611,7 +581,6 @@ public class MainTabs extends AppCompatActivity {
         enable_predictions.setOnClickListener(new ContextButtonListener(c) {
             @Override
             public void onClick(View v) {
-                Toast.makeText(c, "content analysis", Toast.LENGTH_SHORT);
                 new Handler().postDelayed(new ContextRunnable(c) {
                     @Override
                     public void run() {
@@ -648,7 +617,7 @@ public class MainTabs extends AppCompatActivity {
         return rootView;
     }
 
-    private static PlaceholderFragment curFragment;
+    private PlaceholderFragment curFragment;
     /**
      * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
      * one of the sections/tabs/pages.
@@ -711,14 +680,7 @@ public class MainTabs extends AppCompatActivity {
             NotificationManager notManager = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
             notManager.notify(Applications.ACCESSIBILITY_NOTIFICATION_ID, mBuilder.build());
 
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    Intent restart = new Intent(c, MainTabs.class);
-                    c.startActivity(restart);
-                }
-            }, 30000);
-            Toast.makeText(c, "Please enable accessibility services. Automatically restarting application in 30 seconds..", Toast.LENGTH_LONG).show();
+            Toast.makeText(c, "Please enable accessibility services and restart application..", Toast.LENGTH_LONG).show();
             return false;
         }
         return true;

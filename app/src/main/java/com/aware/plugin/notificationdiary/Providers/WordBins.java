@@ -87,13 +87,10 @@ public class WordBins extends SQLiteOpenHelper {
         ArrayList<Cluster> result_list = new ArrayList<>();
         for (Integer key : result.keySet()) {
             result_list.add(result.get(key));
+
         }
         database.close();
 
-        Log.d(TAG, "extracted clusters: " + result_list.size());
-        for (Cluster c : result_list) {
-            Log.d(TAG, c.toString());
-        }
         return result_list;
     }
 

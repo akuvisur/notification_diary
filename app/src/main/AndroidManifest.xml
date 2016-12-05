@@ -19,7 +19,6 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:replace="android:icon, android:theme">
-
         <service
             android:name=".NotificationListener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
@@ -55,7 +54,13 @@
         <service
             android:name=".Predictions.PredictionService"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="true" />
+
+        <activity
+            android:name=".PredictionActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:label="@string/title_activity_prediction"
+            android:theme="@style/FullscreenTheme"></activity>
     </application>
 
 </manifest>

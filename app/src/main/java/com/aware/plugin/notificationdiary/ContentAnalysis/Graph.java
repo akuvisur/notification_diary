@@ -49,14 +49,12 @@ public class Graph {
         long start_second = System.currentTimeMillis()/100;
         Edge edge;
         Node node;
-        Log.d(TAG, "started");
         int count = 0;
 
         for (UnsyncedData.NotificationText n : notificationContents) {
             String[] words = Utils.Randomize((n.contents + n.title).split(" "));
             if (words.length == 1) continue;
             count++;
-            Log.d(TAG, "iteration time ("+count+"): " + ((System.currentTimeMillis()/100) - start_second));
 
             for (int i1 = 0; i1 < words.length; i1++) {
                 word_1 = words[i1];

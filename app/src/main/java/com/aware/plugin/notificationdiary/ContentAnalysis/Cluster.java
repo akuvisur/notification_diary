@@ -22,9 +22,10 @@ public class Cluster {
     }
 
     public void addNode(int d, Node n) {
+        if (d < 1) return;
         if (!nodes.keySet().contains(d)) {
             nodes.put(d, new ArrayList<Node>());
-            max_depth++;
+            max_depth = d;
         }
         nodes.get(d).add(n);
         words.add(n.value);
@@ -48,7 +49,8 @@ public class Cluster {
     // get all nodes
     public ArrayList<Node> getNodes() {
         ArrayList<Node> result = new ArrayList<>();
-        for (int i = 0; i <= max_depth; i++) {
+        result.add(centroid);
+        for (int i = 1; i <= max_depth; i++) {
             for (Node n : nodes.get(i)) {
                 result.add(n);
             }

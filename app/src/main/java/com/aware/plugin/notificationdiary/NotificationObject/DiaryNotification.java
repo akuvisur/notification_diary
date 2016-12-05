@@ -15,10 +15,10 @@ public class DiaryNotification {
     public String interaction_type;
     public Boolean seen = false;
     public Long seen_timestamp;
-    public String application_package;
-    public String notification_category;
 
     // context (when interacting)
+    public String application_package;
+    public String notification_category;
     public String location;
     public String activity;
     public String headphone_jack;
@@ -28,6 +28,13 @@ public class DiaryNotification {
     public String network_availability;
     public String wifi_availability;
     public String foreground_application_package;
+
+    // user labeling
+    public Double timing_value;
+    public Double content_importance_value;
+
+    // increment if new variables are added
+    public static final int CONTEXT_ATTRIBUTE_COUNT = 11;
 
     // match grouped notifications
     public int getHashIdentifier() {

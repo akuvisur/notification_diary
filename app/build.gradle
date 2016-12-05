@@ -1,6 +1,5 @@
 apply plugin: 'com.android.application'
 apply plugin: 'com.jfrog.bintray'
-apply plugin: 'com.google.gms.google-services'
 
 version = version_readable
 group = "com.awareframework"
@@ -42,7 +41,10 @@ dependencies {
     compile "com.awareframework:aware-core:${aware_libs}@aar"
     compile 'com.android.support:design:24.2.1'
     compile 'com.android.support:multidex:1.0.1'
-    compile 'com.google.android.gms:play-services:9.0.0'
+    compile 'com.google.android.gms:play-services:9.6.1'
     compile 'nz.ac.waikato.cms.weka:weka-dev:3.7.10'
     compile 'com.akexorcist:RoundCornerProgressBar:2.0.3'
+    compile 'com.android.support:support-v4:24.2.1'
 }
+
+apply plugin: 'com.google.gms.google-services'

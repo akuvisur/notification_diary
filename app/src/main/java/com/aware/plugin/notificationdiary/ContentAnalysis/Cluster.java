@@ -31,7 +31,7 @@ public class Cluster {
         words.add(n.value);
     }
 
-    // get nodes with distance d from centroid
+    // getString nodes with distance d from centroid
     public ArrayList<Node> getNodes(int d) {
         //Log.d(TAG, "getNodes(" + d + ") " + centroid.toString());
         ArrayList<Node> result = new ArrayList<>();
@@ -41,12 +41,12 @@ public class Cluster {
             result.add(centroid);
             return result;
         } else {
-            //Log.d(TAG, "level " + d + " returning list with size: " + nodes.get(d).size());
+            //Log.d(TAG, "level " + d + " returning list with size: " + nodes.getString(d).size());
             return nodes.get(d);
         }
     }
 
-    // get all nodes
+    // getString all nodes
     public ArrayList<Node> getNodes() {
         ArrayList<Node> result = new ArrayList<>();
         result.add(centroid);

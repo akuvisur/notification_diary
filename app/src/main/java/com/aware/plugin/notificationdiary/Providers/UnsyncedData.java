@@ -170,7 +170,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         init();
         ArrayList<UnsyncedNotification> result = new ArrayList<>();
 
-        // get all that are EITHER 1) labeled and dismissed or 2) clicked
+        // getString all that are EITHER 1) labeled and dismissed or 2) clicked
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
                 UnsyncedData.Notifications_Table.seen + "=? AND ((" + Notifications_Table.labeled + "=? AND " +
@@ -183,20 +183,24 @@ public class UnsyncedData extends SQLiteOpenHelper {
             if (!cursor.moveToFirst()) Log.d(TAG, "empty cursor");
             while (cursor.moveToNext()) {
                 UnsyncedNotification u = new UnsyncedNotification();
-                u.message = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.message));
-                u.title = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.title));
-                u.application_package = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.application_package));
-                u.interaction_type = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
-                u.activity = cursor.getString(cursor.getColumnIndex(Notifications_Table.activity));
-                u.battery_level = cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level));
-                u.foreground_application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package));
-                u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
-                u.wifi_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability));
-                u.network_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability));
-                u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
-                u.screen_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode));
-                u.ringer_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode));
-                u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));
+                u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp));
+                u.generate_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.generate_timestamp));
+                u.interaction_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.interaction_timestamp));
+                u.message = cursor.getString(cursor.getColumnIndex(Notifications_Table.message)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.message));
+                u.title = cursor.getString(cursor.getColumnIndex(Notifications_Table.title)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.title));
+                u.application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package))  == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package));
+                u.notification_category = cursor.getString(cursor.getColumnIndex(Notifications_Table.notification_category)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.notification_category));
+                u.interaction_type = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
+                u.activity = cursor.getString(cursor.getColumnIndex(Notifications_Table.activity)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.activity));
+                u.battery_level = cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level));
+                u.foreground_application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package));
+                u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
+                u.wifi_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability));
+                u.network_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability));
+                u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
+                u.screen_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode));
+                u.ringer_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode));
+                u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack)) == null ? "null" : cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));;
                 u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
                 u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
                 result.add(u);

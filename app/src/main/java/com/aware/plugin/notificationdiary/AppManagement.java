@@ -20,6 +20,7 @@ import java.util.Calendar;
 public class AppManagement {
     public static final String SHARED_PREFS = "com.aware.plugin.notificationdiary";
     public static final String TEST_COUNT = "TEST_COUNT";
+    public static final String NUM_CLUSTERS = "OPTIMAL_NUM_CLUSTERS";
 
     public static final int INTERACTION_CHECK_DELAY = 3000;
     public static final String INTERACTION_TYPE_SYSTEM_DISMISS = "system_dismiss";
@@ -47,7 +48,19 @@ public class AppManagement {
 
         // this application :)
         //BLACKLIST.add("com.aware.plugin.notificationdiary");
+    }
 
+    public static void storeNumClusters(int num_clusters, Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        spe = sp.edit();
+
+        spe.putInt(NUM_CLUSTERS, num_clusters);
+        spe.apply();
+    }
+
+    public static int getNumClusters(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        return sp.getInt(NUM_CLUSTERS, 15);
     }
 
     public static long getCurrentTime() {

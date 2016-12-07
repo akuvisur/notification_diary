@@ -1,42 +1,49 @@
 package com.aware.plugin.notificationdiary;
 
 import android.app.Service;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
-import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
 import com.aware.plugin.notificationdiary.ContentAnalysis.ClusterGenerator;
+import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
 import com.aware.plugin.notificationdiary.ContentAnalysis.Graph;
 import com.aware.plugin.notificationdiary.ContentAnalysis.Node;
+import com.aware.plugin.notificationdiary.NotificationObject.AttributeWithType;
 import com.aware.plugin.notificationdiary.NotificationObject.DiaryNotification;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
+import com.aware.plugin.notificationdiary.Providers.J48Classifiers;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 import com.aware.plugin.notificationdiary.Providers.WordBins;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 
 import weka.classifiers.Evaluation;
-import weka.classifiers.bayes.NaiveBayes;
 import weka.classifiers.trees.J48;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.SerializationHelper;
 
 public class ContentAnalysisService extends Service {
     private final String TAG = "AnalysisService";
-    public static final int SHOW_NOTIFICATION = 1;
-    public static final int HIDE_NOTIFICATION = 0;
+    public static final String SHOW_NOTIFICATION = "SHOW_NOTIFICATION";
+    public static final String HIDE_NOTIFICATION = "HIDE_NOTIFICATION";
     public static final String UNKNOWN = "UNKNOWN";
 
-    final int NUM_CLUSTERS = 20;
+    protected int OPTIMAL_NUM_CLUSTERS = 15;
+    private EvaluationResult evaluationResult;
 
     private Context context;
 
@@ -44,7 +51,9 @@ public class ContentAnalysisService extends Service {
     private ArrayList<String> stopWordsFin;
 
     private J48 tree;
-    private NaiveBayes bayes;
+    private J48 bestTree;
+
+    private ArrayList<Cluster> bestClusters;
 
     public ContentAnalysisService() {
         context = this;
@@ -55,6 +64,8 @@ public class ContentAnalysisService extends Service {
         Log.d(TAG, "started");
         stopWordsEng = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.english)));
         stopWordsFin = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.finnish)));
+
+        OPTIMAL_NUM_CLUSTERS = AppManagement.getNumClusters(context);
 
         new CoreRunnable(context).execute(context);
 
@@ -69,6 +80,9 @@ public class ContentAnalysisService extends Service {
 
     private class CoreRunnable extends AsyncTask<Context, Integer, Long> {
         Context context;
+
+        private J48Classifiers tree_db;
+        private WordBins wordBins;
 
         public CoreRunnable(Context c1) {
             this.context = c1;
@@ -86,38 +100,45 @@ public class ContentAnalysisService extends Service {
         @Override
         protected Long doInBackground(Context... params) {
             context = params[0];
-            Log.d(TAG, "running core runnable");
-            publishProgress(0);
 
-            ClusterGenerator gen = new ClusterGenerator(new Graph(context).getNodes(), NUM_CLUSTERS);
-            publishProgress(20);
+            wordBins = new WordBins(context);
+            bestClusters = wordBins.extractClusters(context);
 
-            WordBins helper = new WordBins(context);
-
-            publishProgress(40);
-
-            helper.storeClusters(gen.getClusters());
-
-            publishProgress(50);
-
-            Instances data = buildClassifier(context);
-
-            publishProgress(70);
+            tree_db = new J48Classifiers(context);
+            evaluationResult = tree_db.getCurrentClassifier();
 
             try {
-                Evaluation eval = new Evaluation(data);
-                eval.crossValidateModel(tree, data, 10, new Random(System.nanoTime()));
-                Log.d(TAG, "J48 Cross validation: " + eval.toSummaryString());
-                Log.d(TAG, "J48 ROC: " + eval.areaUnderROC(data.classIndex()));
-
-                eval = new Evaluation(data);
-                eval.crossValidateModel(bayes, data, 10, new Random(System.nanoTime()));
-                Log.d(TAG, "NB Cross validation: " + eval.toSummaryString());
-                Log.d(TAG, "NB ROC: " + eval.areaUnderROC(data.classIndex()));
-            } catch (Exception e) {
-                e.printStackTrace();
-                Log.d(TAG, "Error when cross-validating");
+                bestTree = (J48) weka.core.SerializationHelper.read(context.getFilesDir() + "/J48.model");
             }
+            catch (Exception e) {
+                Log.d(TAG, "error reading classifier from file");
+                e.printStackTrace();
+            }
+
+            Instances data = null;
+
+            publishProgress(0);
+            // iterate through 10,15,20,25,30 clusters to determine best wordbin amount
+            for (int num_clusters = 2; num_clusters <= 6; num_clusters++) {
+                ClusterGenerator gen = new ClusterGenerator(new Graph(context).getNodes(), num_clusters*5);
+                publishProgress(((num_clusters-1)*20)-15);
+
+                data = buildTrainingData(context, num_clusters);
+                publishProgress(((num_clusters-1)*20)-10);
+
+                data = balanceTrainingData(data);
+                publishProgress(((num_clusters-1)*20)-5);
+
+                buildClassifier(data);
+
+                publishProgress(((num_clusters-1)*20));
+                evaluateClassifier(data, num_clusters*5, gen.getClusters());
+            }
+
+            storeClassifier(data);
+
+            wordBins.close();
+            tree_db.close();
 
             publishProgress(100);
 
@@ -128,16 +149,13 @@ public class ContentAnalysisService extends Service {
             return value;
         }
 
-        private Instances buildClassifier(Context c) {
+        private Instances buildTrainingData(Context c, int num_clusters) {
             // unsupervised training
             String[] options = new String[1];
             options[0] = "-U";
-
             tree = new J48();
-            bayes = new NaiveBayes();
             try {
                 tree.setOptions(options);
-                bayes.setOptions(options);
             }
             catch (Exception e) {e.printStackTrace();}
 
@@ -145,112 +163,96 @@ public class ContentAnalysisService extends Service {
             ArrayList<UnsyncedNotification> notifications = helper.getLabeledNotifications();
             helper.close();
 
-            Log.d(TAG, "buildClassifier: Extracting");
             WordBins helper2 = new WordBins(c);
             ArrayList<Cluster> clusters = helper2.extractClusters(c);
+            helper2.close();
 
             // attributes are notification context + voice bins + class attribute
-            ArrayList<Attribute> attributes = new ArrayList<>(DiaryNotification.CONTEXT_ATTRIBUTE_COUNT+NUM_CLUSTERS+1);
+            ArrayList<Attribute> attributes = new ArrayList<>(DiaryNotification.CONTEXT_ATTRIBUTE_COUNT+num_clusters+1);
 
             List<String> classValues = new ArrayList<>();
-            classValues.add("hide");
-            classValues.add("show");
+            classValues.add(HIDE_NOTIFICATION);
+            classValues.add(SHOW_NOTIFICATION);
             // TODO decide later if you want to use this label
             //classValues.add("defer");
             Attribute labelAttr = new Attribute("label", classValues);
             attributes.add(labelAttr);
 
-            attributes.add(new Attribute("application_package"));
-            attributes.add(new Attribute("notification_category"));
-            attributes.add(new Attribute("location"));
-            attributes.add(new Attribute("activity"));
-            attributes.add(new Attribute("headphone_jack"));
-            attributes.add(new Attribute("screen_mode"));
-            attributes.add(new Attribute("ringer_mode"));
-            attributes.add(new Attribute("battery_level"));
-            attributes.add(new Attribute("network_availability"));
-            attributes.add(new Attribute("wifi_availability"));
-            attributes.add(new Attribute("foreground_application_package"));
-            for (int i = 0; i < NUM_CLUSTERS; i++) {
+            // add context variables
+            HashMap<String, ArrayList<String>> attributeValuesMap = extractAttributeValues(notifications);
+
+            for (AttributeWithType context_variable : UnsyncedNotification.getContextVariables()) {
+                if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_STRING)) {
+                    if (attributeValuesMap.containsKey(context_variable.name)) attributes.add(new Attribute(context_variable.name, attributeValuesMap.get(context_variable.name)));
+                    else attributes.add(new Attribute(context_variable.name, new ArrayList<>(Arrays.asList("null"))));
+                }
+                else if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_DOUBLE)) {
+                    attributes.add(new Attribute(context_variable.name));
+                }
+            }
+
+            for (int i = 0; i < num_clusters; i++) {
                 attributes.add(new Attribute("wordbin" + i));
             }
+
             Instances training_data = new Instances("labeled_notifications", attributes, notifications.size());
             training_data.setClassIndex(0);
 
             double word_count;
             ArrayList<String> words;
+            Instance instance;
             // add training data as instances
             for (UnsyncedNotification n : notifications) {
-                Instance instance = new DenseInstance(DiaryNotification.CONTEXT_ATTRIBUTE_COUNT+NUM_CLUSTERS+1);
+                instance = new DenseInstance(DiaryNotification.CONTEXT_ATTRIBUTE_COUNT + num_clusters + 1);
+                // every instance needs to be associated to a dataset
+                instance.setDataset(training_data);
                 // CLASS LABELS
                 // click means always show
                 if (n.interaction_type.equals(AppManagement.INTERACTION_TYPE_CLICK)) {
-                    //instance.setValue(attributes.get(0), attributes.get(0).addStringValue(SHOW_NOTIFICATION));
-                    instance.setValue(attributes.get(0), 1);
+                    //instance.setValue(attributes.getString(0), attributes.getString(0).addStringValue(SHOW_NOTIFICATION));
+                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
                 }
                 // if both are null, result is unknown so should SHOW
                 else if (n.timing_value == null & n.content_importance_value == null) {
-                    instance.setValue(attributes.get(0), 1);
+                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
                 }
                 // if timing is unsure but contents are important SHOW
                 else if (n.timing_value == null & n.content_importance_value != null && n.content_importance_value >= 3) {
-                    instance.setValue(attributes.get(0), 1);
+                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
                 }
                 // if timing is unsure but contents are irrelevant HIDE
                 else if (n.timing_value == null & n.content_importance_value != null && n.content_importance_value < 3) {
-                    //instance.setValue(attributes.get(0), attributes.get(0).addStringValue(HIDE_NOTIFICATION));
-                    instance.setValue(attributes.get(0), 0);
+                    //instance.setValue(attributes.getString(0), attributes.getString(0).addStringValue(HIDE_NOTIFICATION));
+                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
                 }
                 // if content is unsure but timing was approriate SHOW
                 else if ((n.content_importance_value == null) && (n.timing_value >= 3)) {
-                    instance.setValue(attributes.get(0), 1);
+                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
                 }
+                // if timing unapproriate HIDE
                 else if ((n.content_importance_value == null) && (n.timing_value < 3)) {
-                    instance.setValue(attributes.get(0), 1);
+                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
                 }
-                else if (n.content_importance_value != null && n.timing_value != null && (n.content_importance_value * 0.7)+(n.timing_value * 0.3) > 3) {
-                    instance.setValue(attributes.get(0), 1);
-                }
+                // finally if both exist, calculate weighted average (timing * 0.3 + content * 0.7) SHOW
+                else if (n.content_importance_value != null && n.timing_value != null && (n.content_importance_value * 0.7)+(n.timing_value * 0.3) >= 3) {
+                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                } // HIDE
                 else {
-                    instance.setValue(attributes.get(0), 0);
+                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
                 }
 
                 // add remaining raw values
-                if (training_data.attribute(1).indexOfValue(n.application_package) < 0) { training_data.attribute(1).addStringValue(n.application_package);}
-                instance.setValue(attributes.get(1), training_data.attribute(1).indexOfValue(n.application_package));
-
-                if (training_data.attribute(2).indexOfValue(n.notification_category) < 0) { training_data.attribute(2).addStringValue(n.notification_category);}
-                instance.setValue(attributes.get(2), attributes.get(2).addStringValue(n.notification_category));
-
-                if (training_data.attribute(3).indexOfValue(n.location) < 0) { training_data.attribute(3).addStringValue(n.location);}
-                instance.setValue(attributes.get(3), attributes.get(3).addStringValue(n.location));
-
-                if (training_data.attribute(4).indexOfValue(n.activity) < 0) { training_data.attribute(4).addStringValue(n.activity);}
-                instance.setValue(attributes.get(4), attributes.get(4).addStringValue(n.activity));
-
-                if (training_data.attribute(5).indexOfValue(n.headphone_jack) < 0) { training_data.attribute(5).addStringValue(n.headphone_jack);}
-                instance.setValue(attributes.get(5), attributes.get(5).addStringValue(n.headphone_jack));
-
-                if (training_data.attribute(6).indexOfValue(n.screen_mode) < 0) { training_data.attribute(6).addStringValue(n.screen_mode);}
-                instance.setValue(attributes.get(6), attributes.get(6).addStringValue(n.screen_mode));
-
-                if (training_data.attribute(7).indexOfValue(n.ringer_mode) < 0) { training_data.attribute(7).addStringValue(n.ringer_mode);}
-                instance.setValue(attributes.get(7), attributes.get(7).addStringValue(n.ringer_mode));
-
-                if (training_data.attribute(8).indexOfValue(n.battery_level) < 0) { training_data.attribute(8).addStringValue(n.battery_level);}
-                instance.setValue(attributes.get(8), (Double.valueOf(n.battery_level)));
-
-                if (training_data.attribute(9).indexOfValue(n.network_availability) < 0) { training_data.attribute(9).addStringValue(n.network_availability);}
-                instance.setValue(attributes.get(9), attributes.get(9).addStringValue(n.network_availability));
-
-                if (training_data.attribute(10).indexOfValue(n.wifi_availability) < 0) { training_data.attribute(10).addStringValue(n.wifi_availability);}
-                instance.setValue(attributes.get(10), attributes.get(10).addStringValue(n.wifi_availability));
-
-                if (training_data.attribute(11).indexOfValue(n.foreground_application_package) < 0) { training_data.attribute(11).addStringValue(n.foreground_application_package);}
-                instance.setValue(attributes.get(11), attributes.get(11).addStringValue(n.foreground_application_package));
+                for (AttributeWithType context_variable : UnsyncedNotification.getContextVariables()) {
+                    if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_STRING) & attributeValuesMap.containsKey(context_variable.name)) {
+                        instance.setValue(training_data.attribute(context_variable.name), n.getString(context_variable.name));
+                    }
+                    else if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_DOUBLE)) {
+                        instance.setValue(training_data.attribute(context_variable.name), n.getDouble(context_variable.name));
+                    }
+                }
 
                 // word bins
-                for (int i = 0; i < NUM_CLUSTERS; i++) {
+                for (int i = 0; i < num_clusters; i++) {
                     word_count = 0;
                     Cluster cluster = clusters.get(i);
                     words = strip(n.title, n.message);
@@ -262,22 +264,125 @@ public class ContentAnalysisService extends Service {
 
                 training_data.add(instance);
             }
-            Log.d(TAG, "hep");
-            Log.d(TAG, "num: " + training_data.size());
-            Log.d(TAG, "class: " + training_data.classAttribute().toString() + " (" + training_data.classIndex() + ") / " + training_data.numAttributes());
-            Log.d(TAG, training_data.toSummaryString());
 
+            return training_data;
+        }
+
+        private HashMap<String, ArrayList<String>> extractAttributeValues(ArrayList<UnsyncedNotification> n) {
+            HashMap<String, ArrayList<String>> result = new HashMap<>();
+
+            for (UnsyncedNotification notification : n) {
+                for (AttributeWithType context_variable : UnsyncedNotification.getContextVariables()) {
+                    // doubles are numeric so do not need range of values
+                    if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_DOUBLE)) continue;
+                    // dont add nulls because doesnt do null checks
+                    // add new list of possible attribute values if does not exist yet
+                    if (!result.keySet().contains(context_variable.name)) result.put(context_variable.name, new ArrayList<String>());
+                    // if no duplicate exists yet, add the possible value
+                    if (notification.getString(context_variable.name) == null) result.get(context_variable.name).add("null");
+                    if (!result.get(context_variable.name).contains(notification.getString(context_variable.name))) result.get(context_variable.name).add(notification.getString(context_variable.name));
+                }
+            }
+            return result;
+        }
+
+        private Instances balanceTrainingData(Instances d) {
+            int show = 0, hide = 0;
+            for (Instance inst : d) {
+                if (inst.value(inst.classIndex()) == inst.classAttribute().indexOfValue(SHOW_NOTIFICATION)) show++;
+                else hide++;
+            }
+            Collections.shuffle(d, new Random(System.nanoTime()));
+            if (show > hide) {
+                for (int i = 0; i < ((show-hide)/2); i++) {
+                    d.remove(i);
+                }
+            }
+            else if (hide > show) {
+                for (int i = 0; i < ((hide-show)/2); i++) {
+                    d.remove(i);
+                }
+            }
+            return d;
+        }
+
+        private void buildClassifier(Instances data) {
             try {
-                tree.buildClassifier(training_data);
-                bayes.buildClassifier(training_data);
+                tree.buildClassifier(data);
             } catch (Exception e) {
                 Log.d(TAG, "Error building J48 classifier");
                 e.printStackTrace();
             }
 
-            return training_data;
+        }
+
+        private void evaluateClassifier(Instances data, int num_clusters, ArrayList<Cluster> clusters) {
+
+            try {
+                Evaluation eval = new Evaluation(data);
+                eval.crossValidateModel(tree, data, 10, new Random(System.nanoTime()));
+
+                EvaluationResult e = new EvaluationResult(
+                        eval.correct()/2,
+                        eval.areaUnderROC(data.classIndex()),
+                        eval.falsePositiveRate(data.attribute(data.classIndex()).indexOfValue(SHOW_NOTIFICATION)),
+                        eval.falsePositiveRate(data.attribute(data.classIndex()).indexOfValue(HIDE_NOTIFICATION)),
+                        eval.kappa(),
+                        num_clusters
+                );
+
+                if (e.isBetterThan(evaluationResult)) {
+                    evaluationResult = e;
+                    bestTree = tree;
+                    OPTIMAL_NUM_CLUSTERS = num_clusters;
+                    bestClusters = clusters;
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.d(TAG, "Error when cross-validating");
+            }
+        }
+
+        private void storeClassifier(Instances data) {
+            if (data == null) return;
+            tree_db.close();
+            wordBins.close();
+
+            tree_db = new J48Classifiers(context);
+            wordBins = new WordBins(context);
+            try {
+                Log.d(TAG, "writing classifier to file");
+                Log.d(TAG, evaluationResult.toString());
+                SerializationHelper.write(context.getFilesDir() + "/J48.model", bestTree);
+
+                ContentValues values = new ContentValues();
+                values.put(J48Classifiers.Classifiers_Table.generate_timestamp, System.currentTimeMillis());
+                values.put(J48Classifiers.Classifiers_Table.accuracy, evaluationResult.accuracy);
+                values.put(J48Classifiers.Classifiers_Table.roc_area, evaluationResult.roc_area);
+                values.put(J48Classifiers.Classifiers_Table.show_false_positive, evaluationResult.show_false_positive);
+                values.put(J48Classifiers.Classifiers_Table.hide_false_positive, evaluationResult.hide_false_positive);
+                values.put(J48Classifiers.Classifiers_Table.kappa, evaluationResult.kappa);
+                values.put(J48Classifiers.Classifiers_Table.num_instances, data.size());
+
+                tree_db.insertRecord(values);
+
+                AppManagement.storeNumClusters(OPTIMAL_NUM_CLUSTERS, context);
+
+                wordBins.storeClusters(bestClusters, false);
+
+                Log.d(TAG, "Stored best classifier: " + evaluationResult.toString());
+            }
+            catch (Exception e) {
+                Log.d(TAG, "error writing");
+                e.printStackTrace();
+            }
+
+            wordBins.close();
+            tree_db.close();
         }
     }
+
 
     public ArrayList<String> strip(String title, String contents) {
         String a = title + " " + contents;

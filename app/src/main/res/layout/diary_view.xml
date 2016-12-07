@@ -24,9 +24,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/notification_layout"
-        android:padding="4dp"
+        android:padding="6dp"
         android:layout_margin="2dp"
-        android:paddingBottom="2dp">
+        android:paddingBottom="2dp"
+        android:background="@drawable/dropshadow">
 
         <TextView
             android:layout_width="wrap_content"
@@ -78,11 +79,6 @@
 
 
     </RelativeLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@android:color/darker_gray"/>
 
     <RelativeLayout
         android:orientation="vertical" android:layout_width="match_parent"

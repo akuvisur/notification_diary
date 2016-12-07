@@ -87,14 +87,13 @@ public class WordBins extends SQLiteOpenHelper {
         ArrayList<Cluster> result_list = new ArrayList<>();
         for (Integer key : result.keySet()) {
             result_list.add(result.get(key));
-
         }
         database.close();
 
         return result_list;
     }
 
-    public void storeClusters(ArrayList<Cluster> clusters) {
+    public void storeClusters(ArrayList<Cluster> clusters, boolean closeAfter) {
         init();
         // always replace
         database.execSQL("DELETE FROM " + DATABASE_NAME + " WHERE _ID >= 0");
@@ -116,12 +115,12 @@ public class WordBins extends SQLiteOpenHelper {
                     }
                 }
                 cur_cluster++;
-                Log.d(TAG, "added a new cluster (" + cur_cluster + " with " + word_count + " words");
+                //Log.d(TAG, "added a new cluster (" + cur_cluster + ") with " + word_count + " words");
             }
             database.setTransactionSuccessful();
         } finally {
             database.endTransaction();
         }
-        database.close();
+        if (closeAfter) database.close();
     }
 }

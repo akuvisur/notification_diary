@@ -44,7 +44,7 @@ public class ClusterGenerator {
         Cluster cluster;
         allnodes:
         for (int i = nodes.size()-1; i >= 0; i--) {
-            //Log.d(TAG, "clustering for node: " + nodes.get(i).toString());
+            //Log.d(TAG, "clustering for node: " + nodes.getString(i).toString());
             for (Cluster c : clusters) {
                 // check if current node shares edge with existing centroid
                 for (Edge e : c.centroid.edges) {
@@ -68,7 +68,7 @@ public class ClusterGenerator {
         // added nodes
         ArrayList<Node> addedNodes = new ArrayList<>();
 
-        // get nodes surrounding centroids.. then nodes surrounding those nodes, etc. etc. etc.
+        // getString nodes surrounding centroids.. then nodes surrounding those nodes, etc. etc. etc.
         while (CUR_DEPTH < MAX_DEPTH) {
             // refresh potential clusters for each level
             potentialClusters = new HashMap<>();

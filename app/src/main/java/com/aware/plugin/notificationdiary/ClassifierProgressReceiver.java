@@ -29,6 +29,7 @@ public class ClassifierProgressReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         bar.setProgress(intent.getExtras().getInt(PROGRESS));
+        bar.setSecondaryProgress(intent.getExtras().getInt(PROGRESS)+10 > 100 ? 100 : intent.getExtras().getInt(PROGRESS));
         text.setText(intent.getExtras().getString(PROGRESS_LABEL));
         bar.invalidate();
         text.invalidate();

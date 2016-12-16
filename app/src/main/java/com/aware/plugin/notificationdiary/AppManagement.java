@@ -13,6 +13,7 @@ import com.aware.plugin.notificationdiary.Providers.WordBins;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Random;
 
 /**
  * Created by aku on 14/11/16.
@@ -21,12 +22,15 @@ public class AppManagement {
     public static final String SHARED_PREFS = "com.aware.plugin.notificationdiary";
     public static final String TEST_COUNT = "TEST_COUNT";
     public static final String NUM_CLUSTERS = "OPTIMAL_NUM_CLUSTERS";
+    public static final String PREDICTIONS_ENABLED = "PREDICTIONS_ENABLED";
 
     public static final int INTERACTION_CHECK_DELAY = 3000;
     public static final String INTERACTION_TYPE_SYSTEM_DISMISS = "system_dismiss";
     public static final String INTERACTION_TYPE_REPLACE = "replaced";
     public static final String INTERACTION_TYPE_DISMISS = "dismiss";
     public static final String INTERACTION_TYPE_CLICK = "click";
+
+    public static final int NOTIFICATION_UNLABELED_NOTIFICATIONS = 7812378;
 
     public static long LAST_TOUCH = 0;
 
@@ -48,6 +52,18 @@ public class AppManagement {
 
         // this application :)
         //BLACKLIST.add("com.aware.plugin.notificationdiary");
+    }
+
+    public static Boolean predictionsEnabled(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        return sp.getBoolean(PREDICTIONS_ENABLED, false);
+    }
+
+    public static void enablePredictions(Context c, boolean enabled) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        spe = sp.edit();
+        spe.putBoolean(PREDICTIONS_ENABLED, enabled);
+        spe.apply();
     }
 
     public static void storeNumClusters(int num_clusters, Context c) {
@@ -89,7 +105,7 @@ public class AppManagement {
     static ArrayList<Cluster> clusters;
     public static ArrayList<Cluster> extractClusters(Context c) {
         WordBins helper = new WordBins(c);
-        clusters = helper.extractClusters(c);
+        clusters = helper.extractAllClusters(c, true);
         helper.close();
         return clusters;
     }
@@ -97,6 +113,17 @@ public class AppManagement {
     public static ArrayList<Cluster> getClusters(Context c) {
         if (clusters == null) extractClusters(c);
         return clusters;
+    }
+
+
+    public static int getRandomNumberInRange(int min, int max) {
+
+        if (min >= max) {
+            throw new IllegalArgumentException("max must be greater than min");
+        }
+
+        Random r = new Random();
+        return r.nextInt((max - min) + 1) + min;
     }
 
     // locations

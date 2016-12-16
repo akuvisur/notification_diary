@@ -15,6 +15,12 @@ public class Cluster {
     private HashMap<Integer, ArrayList<Node>> nodes;
     private ArrayList<String> words;
 
+    public Cluster() {
+        this.centroid = new Node("post_generated");
+        this.nodes = new HashMap<>();
+        this.words = new ArrayList<>();
+    }
+
     public Cluster(Node n) {
         this.centroid = n;
         this.nodes = new HashMap<>();

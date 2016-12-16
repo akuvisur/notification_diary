@@ -21,6 +21,10 @@ import java.util.HashMap;
 public class InteractionContext {
     private static final String TAG = "InteractionContext";
 
+    public static final String RINGER_NORMAL = "RINGER_NORMAL";
+    public static final String RINGER_SILENT = "RINGER_SILENT";
+    public static final String RINGER_VIBRATE = "RINGER_VIBRATE";
+
     HashMap<String, String> c = new HashMap<>();
 
     public InteractionContext(Context context) {
@@ -41,13 +45,13 @@ public class InteractionContext {
         // RINGER MODE
         switch (((AudioManager) context.getSystemService(Context.AUDIO_SERVICE)).getRingerMode()) {
             case AudioManager.RINGER_MODE_NORMAL:
-                c.put(UnsyncedData.Notifications_Table.ringer_mode, "normal");
+                c.put(UnsyncedData.Notifications_Table.ringer_mode, RINGER_NORMAL);
                 break;
             case AudioManager.RINGER_MODE_SILENT:
-                c.put(UnsyncedData.Notifications_Table.ringer_mode, "silent");
+                c.put(UnsyncedData.Notifications_Table.ringer_mode, RINGER_SILENT);
                 break;
             case AudioManager.RINGER_MODE_VIBRATE:
-                c.put(UnsyncedData.Notifications_Table.ringer_mode, "vibrate");
+                c.put(UnsyncedData.Notifications_Table.ringer_mode, RINGER_VIBRATE);
                 break;
         }
 

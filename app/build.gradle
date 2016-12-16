@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId "com.aware.plugin.notificationdiary"
-        minSdkVersion 19
+        minSdkVersion 21
         targetSdkVersion 24
         versionCode 1
         versionName "1.0"
@@ -42,9 +42,9 @@ dependencies {
     compile 'com.android.support:design:24.2.1'
     compile 'com.android.support:multidex:1.0.1'
     compile 'com.google.android.gms:play-services:9.6.1'
-    compile 'nz.ac.waikato.cms.weka:weka-dev:3.7.10'
     compile 'com.akexorcist:RoundCornerProgressBar:2.0.3'
     compile 'com.android.support:support-v4:24.2.1'
+    compile 'nz.ac.waikato.cms.weka:weka-dev:3.7.10'
 }
 
 apply plugin: 'com.google.gms.google-services'

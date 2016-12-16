@@ -9,8 +9,6 @@ import android.util.Log;
 
 import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
 
-import weka.core.converters.C45Loader;
-
 /**
  * Created by aku on 07/12/16.
  */

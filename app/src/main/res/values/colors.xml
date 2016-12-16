@@ -10,5 +10,8 @@
     <color name="cancel">#fefee7</color>
     <color name="extra_input">#e7fefe</color>
 
+    <color name="accent_yellow">#f8f887</color>
+    <color name="accent_red">#f88787</color>
+
     <color name="black_overlay">#66000000</color>
 </resources>

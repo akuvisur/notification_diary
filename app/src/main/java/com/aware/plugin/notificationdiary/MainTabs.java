@@ -4,16 +4,17 @@ import android.Manifest;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.RingtoneManager;
 import android.os.Handler;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.NotificationManagerCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.support.v4.view.accessibility.AccessibilityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -25,7 +26,9 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
+import android.text.Html;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -38,7 +41,6 @@ import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.RatingBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -49,16 +51,23 @@ import com.akexorcist.roundcornerprogressbar.RoundCornerProgressBar;
 import com.aware.Applications;
 import com.aware.Aware;
 import com.aware.Aware_Preferences;
+import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
+import com.aware.plugin.notificationdiary.Providers.J48Classifiers;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 import com.aware.ui.PermissionsHandler;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainTabs extends AppCompatActivity {
 
     private static final String TAG = "MainTabs";
+
+    public static final String START_WITH_TAB = "START_WITH_TAB";
+    public static final String DIARY_TAB = "DIARY_TAB";
+    public static final String PREDICTION_TAB = "PREDICTION_TAB";
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -189,13 +198,18 @@ public class MainTabs extends AppCompatActivity {
             Aware.stopLocations(this);
             Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
         }
+
+        // change page to prediction tab if needed
+        if (getIntent() != null & getIntent().hasExtra(START_WITH_TAB)) {
+            if (getIntent().getStringExtra(START_WITH_TAB).equals(PREDICTION_TAB))  mViewPager.setCurrentItem(1);
+        }
     }
 
     @Override
     public void onPause() {
         super.onPause();
         try {
-            if (rec != null) unregisterReceiver(rec);
+            if (progressReceiver != null) unregisterReceiver(progressReceiver);
         }
         catch (Exception e) {e.printStackTrace();}
     }
@@ -490,6 +504,7 @@ public class MainTabs extends AppCompatActivity {
                             NotificationCompat.Builder builder = (NotificationCompat.Builder) new NotificationCompat.Builder(context)
                                     .setSmallIcon(android.R.drawable.ic_dialog_alert)
                                     .setContentTitle("a"+System.currentTimeMillis())
+                                    .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                                     .setContentText("asdf!" + System.currentTimeMillis());
                             NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
                             notificationManager.notify((int) (System.currentTimeMillis() % 12345), builder.build());
@@ -569,45 +584,146 @@ public class MainTabs extends AppCompatActivity {
         refreshDiaryFragment(c);
     }
 
+    // disabled view
     Button enable_predictions;
     RoundCornerProgressBar classifier_progress;
     TextView classifier_progress_text;
-    ClassifierProgressReceiver rec;
+
+    // enabled view
+    Button refresh_model;
+    Button launch_pred_act;
+    Button disable_pred;
+    TextView model_accuracy;
+    TextView accuracy_description;
+    LinearLayout accuracy_visualisation;
+
+    ClassifierProgressReceiver progressReceiver;
+
     public View generatePredictionView(final Context c, final LayoutInflater inflater, final ViewGroup container) {
+        if (AppManagement.predictionsEnabled(c)) {
+            final View rootView = inflater.inflate(R.layout.prediction_view_enabled, container, false);
 
-        final View rootView = inflater.inflate(R.layout.prediction_view_disabled, container, false);
+            refresh_model = (Button) rootView.findViewById(R.id.refresh_model);
+            launch_pred_act = (Button) rootView.findViewById(R.id.launch_pred_act);
+            disable_pred = (Button) rootView.findViewById(R.id.disable_predictions);
+            model_accuracy = (TextView) rootView.findViewById(R.id.model_accuracy);
+            accuracy_description = (TextView) rootView.findViewById(R.id.accuracy_description);
+            accuracy_visualisation = (LinearLayout) rootView.findViewById(R.id.accuracy_visualisation);
 
-        enable_predictions = (Button) rootView.findViewById(R.id.predictions_enable);
-        enable_predictions.setOnClickListener(new ContextButtonListener(c) {
-            @Override
-            public void onClick(View v) {
-                new Handler().postDelayed(new ContextRunnable(c) {
-                    @Override
-                    public void run() {
-                        rec = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c);
-                        IntentFilter filt = new IntentFilter();
-                        filt.addAction(ClassifierProgressReceiver.ACTION);
-                        c.registerReceiver(rec, filt);
+            classifier_progress = (RoundCornerProgressBar) rootView.findViewById(R.id.classifier_progress);
+            classifier_progress.setVisibility(View.INVISIBLE);
 
-                        classifier_progress.setVisibility(View.VISIBLE);
-                        classifier_progress_text.setVisibility(View.VISIBLE);
+            classifier_progress_text = (TextView) rootView.findViewById(R.id.classifier_progress_text);
+            classifier_progress.setVisibility(View.INVISIBLE);
 
-                        Intent srvIntent = new Intent(c, ContentAnalysisService.class);
-                        c.startService(srvIntent);
-                    }
-                }, 500);
+            refresh_model.setOnClickListener(new ContextButtonListener(c) {
+                @Override
+                public void onClick(View v) {
+                    new Handler().postDelayed(new ContextRunnable(c) {
+                        @Override
+                        public void run() {
+                            refresh_model.setEnabled(false);
+                            progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c);
+                            IntentFilter filt = new IntentFilter();
+                            filt.addAction(ClassifierProgressReceiver.ACTION);
+                            c.registerReceiver(progressReceiver, filt);
+
+                            classifier_progress.setVisibility(View.VISIBLE);
+                            classifier_progress_text.setVisibility(View.VISIBLE);
+
+                            Intent srvIntent = new Intent(c, ContentAnalysisService.class);
+                            c.startService(srvIntent);
+                        }
+                    }, 500);
+                }
+            });
+
+            launch_pred_act.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent predAct = new Intent(c, PredictionActivity.class);
+                    startActivity(predAct);
+                }
+            });
+
+            disable_pred.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    AppManagement.enablePredictions(c, false);
+                    Intent restartMain = new Intent(context, MainTabs.class);
+                    restartMain.putExtra(MainTabs.START_WITH_TAB, MainTabs.PREDICTION_TAB);
+                    startActivity(restartMain);
+                }
+            });
+
+            J48Classifiers modelInfo = new J48Classifiers(c);
+            EvaluationResult curResult = modelInfo.getCurrentClassifier();
+
+            model_accuracy.setText(new DecimalFormat("#.0").format(curResult.accuracy) + "%");
+
+            ViewGroup.LayoutParams params = accuracy_visualisation.getLayoutParams();
+            params.height = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (float) (curResult.accuracy*1.6), getResources().getDisplayMetrics());
+            accuracy_visualisation.setLayoutParams(params);
+            if (curResult.accuracy < 80) accuracy_visualisation.setBackgroundColor(ContextCompat.getColor(c, R.color.accent_yellow));
+            if (curResult.accuracy < 60) accuracy_visualisation.setBackgroundColor(ContextCompat.getColor(c, R.color.accent_red));
+
+            DecimalFormat df = new DecimalFormat("#.0");
+
+            accuracy_description.setText(
+                    Html.fromHtml("The overall accuracy of the model is <b>" + df.format(curResult.accuracy) + "%</b>. " +
+                    "It has approximately <b>" + df.format(curResult.hide_false_positive*100) + "%</b> probability of mistakenly hiding arriving notification and <b>" +
+                    df.format(curResult.show_false_positive*100) + "%</b> probability of showing an unwanted notification. " +
+                    "Finally, using the Kappa statistic the model is approximately <b>" + df.format(curResult.kappa*100) + "%</b> better at prediction than a random guess.")
+            );
+
+            modelInfo.close();
+
+            return rootView;
+        }
+        else {
+            final View rootView = inflater.inflate(R.layout.prediction_view_disabled, container, false);
+
+            enable_predictions = (Button) rootView.findViewById(R.id.predictions_enable);
+            enable_predictions.setOnClickListener(new ContextButtonListener(c) {
+                @Override
+                public void onClick(View v) {
+                    new Handler().postDelayed(new ContextRunnable(c) {
+                        @Override
+                        public void run() {
+                            progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c);
+                            IntentFilter filt = new IntentFilter();
+                            filt.addAction(ClassifierProgressReceiver.ACTION);
+                            c.registerReceiver(progressReceiver, filt);
+
+                            classifier_progress.setVisibility(View.VISIBLE);
+                            classifier_progress_text.setVisibility(View.VISIBLE);
+
+                            Intent srvIntent = new Intent(c, ContentAnalysisService.class);
+                            c.startService(srvIntent);
+                        }
+                    }, 500);
+                }
+            });
+            UnsyncedData helper = new UnsyncedData(c);
+            if (helper.getNumOfTrainingData() >= 100) enable_predictions.setEnabled(true);
+
+            if (progressReceiver != null && progressReceiver.progress == 0) {
+                classifier_progress = (RoundCornerProgressBar) rootView.findViewById(R.id.classifier_progress);
+                classifier_progress.setVisibility(View.INVISIBLE);
+
+                classifier_progress_text = (TextView) rootView.findViewById(R.id.classifier_progress_text);
+                classifier_progress.setVisibility(View.INVISIBLE);
             }
-        });
-        UnsyncedData helper = new UnsyncedData(c);
-        if (helper.getNumOfTrainingData() > 100) enable_predictions.setEnabled(true);
+            else if (progressReceiver != null) {
+                classifier_progress.setProgress((float) progressReceiver.progress);
+                classifier_progress.setSecondaryProgress((float) progressReceiver.progress + 10);
 
-        classifier_progress = (RoundCornerProgressBar) rootView.findViewById(R.id.classifier_progress);
-        classifier_progress.setVisibility(View.INVISIBLE);
+                classifier_progress_text.setText(progressReceiver.progress + "% complete");
+            }
 
-        classifier_progress_text = (TextView) rootView.findViewById(R.id.classifier_progress_text);
-        classifier_progress.setVisibility(View.INVISIBLE);
+            return rootView;
+        }
 
-        return rootView;
     }
 
     public View generateHelpView(Context context, final LayoutInflater inflater, final ViewGroup container) {

@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.IBinder;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
 import com.aware.plugin.notificationdiary.ContentAnalysis.ClusterGenerator;
@@ -21,6 +20,8 @@ import com.aware.plugin.notificationdiary.Providers.J48Classifiers;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 import com.aware.plugin.notificationdiary.Providers.WordBins;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,6 +31,7 @@ import java.util.Random;
 
 import weka.classifiers.Evaluation;
 import weka.classifiers.trees.J48;
+import weka.classifiers.trees.RandomForest;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instance;
@@ -41,9 +43,11 @@ public class ContentAnalysisService extends Service {
     public static final String SHOW_NOTIFICATION = "SHOW_NOTIFICATION";
     public static final String HIDE_NOTIFICATION = "HIDE_NOTIFICATION";
     public static final String UNKNOWN = "UNKNOWN";
+    public static final String EMPTY_VALUE = "EMPTY_VALUE";
 
     protected int OPTIMAL_NUM_CLUSTERS = 15;
     private EvaluationResult evaluationResult;
+    private EvaluationResult previousEvaluationResult;
 
     private Context context;
 
@@ -52,6 +56,7 @@ public class ContentAnalysisService extends Service {
 
     private J48 tree;
     private J48 bestTree;
+    private RandomForest rand;
 
     private ArrayList<Cluster> bestClusters;
 
@@ -102,10 +107,10 @@ public class ContentAnalysisService extends Service {
             context = params[0];
 
             wordBins = new WordBins(context);
-            bestClusters = wordBins.extractClusters(context);
+            bestClusters = wordBins.extractAllClusters(context, true);
 
             tree_db = new J48Classifiers(context);
-            evaluationResult = tree_db.getCurrentClassifier();
+            previousEvaluationResult= tree_db.getCurrentClassifier();
 
             try {
                 bestTree = (J48) weka.core.SerializationHelper.read(context.getFilesDir() + "/J48.model");
@@ -123,7 +128,7 @@ public class ContentAnalysisService extends Service {
                 ClusterGenerator gen = new ClusterGenerator(new Graph(context).getNodes(), num_clusters*5);
                 publishProgress(((num_clusters-1)*20)-15);
 
-                data = buildTrainingData(context, num_clusters);
+                data = buildTrainingData(context, num_clusters*5);
                 publishProgress(((num_clusters-1)*20)-10);
 
                 data = balanceTrainingData(data);
@@ -135,12 +140,23 @@ public class ContentAnalysisService extends Service {
                 evaluateClassifier(data, num_clusters*5, gen.getClusters());
             }
 
+            if (previousEvaluationResult.isBetterThan(evaluationResult)) {
+                Log.d(TAG, "previous result seemed to be better");
+            }
+
             storeClassifier(data);
 
             wordBins.close();
             tree_db.close();
 
+            AppManagement.enablePredictions(context, true);
+
             publishProgress(100);
+
+            Intent restartMain = new Intent(context, MainTabs.class);
+            restartMain.putExtra(MainTabs.START_WITH_TAB, MainTabs.PREDICTION_TAB);
+            restartMain.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(restartMain);
 
             Intent stopIntent = new Intent(context, ContentAnalysisService.class);
             stopService(stopIntent);
@@ -154,8 +170,10 @@ public class ContentAnalysisService extends Service {
             String[] options = new String[1];
             options[0] = "-U";
             tree = new J48();
+            rand = new RandomForest();
             try {
                 tree.setOptions(options);
+                rand.setOptions(options);
             }
             catch (Exception e) {e.printStackTrace();}
 
@@ -164,7 +182,7 @@ public class ContentAnalysisService extends Service {
             helper.close();
 
             WordBins helper2 = new WordBins(c);
-            ArrayList<Cluster> clusters = helper2.extractClusters(c);
+            ArrayList<Cluster> clusters = helper2.extractAllClusters(c, true);
             helper2.close();
 
             // attributes are notification context + voice bins + class attribute
@@ -184,7 +202,7 @@ public class ContentAnalysisService extends Service {
             for (AttributeWithType context_variable : UnsyncedNotification.getContextVariables()) {
                 if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_STRING)) {
                     if (attributeValuesMap.containsKey(context_variable.name)) attributes.add(new Attribute(context_variable.name, attributeValuesMap.get(context_variable.name)));
-                    else attributes.add(new Attribute(context_variable.name, new ArrayList<>(Arrays.asList("null"))));
+                    else attributes.add(new Attribute(context_variable.name, new ArrayList<>(Arrays.asList(EMPTY_VALUE))));
                 }
                 else if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_DOUBLE)) {
                     attributes.add(new Attribute(context_variable.name));
@@ -277,9 +295,13 @@ public class ContentAnalysisService extends Service {
                     if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_DOUBLE)) continue;
                     // dont add nulls because doesnt do null checks
                     // add new list of possible attribute values if does not exist yet
-                    if (!result.keySet().contains(context_variable.name)) result.put(context_variable.name, new ArrayList<String>());
+                    if (!result.keySet().contains(context_variable.name)) {
+                        ArrayList<String> empty = new ArrayList<String>();
+                        empty.add(EMPTY_VALUE);
+                        result.put(context_variable.name, empty);
+                    }
                     // if no duplicate exists yet, add the possible value
-                    if (notification.getString(context_variable.name) == null) result.get(context_variable.name).add("null");
+                    if (notification.getString(context_variable.name) == null) result.get(context_variable.name).add(EMPTY_VALUE);
                     if (!result.get(context_variable.name).contains(notification.getString(context_variable.name))) result.get(context_variable.name).add(notification.getString(context_variable.name));
                 }
             }
@@ -313,17 +335,21 @@ public class ContentAnalysisService extends Service {
                 Log.d(TAG, "Error building J48 classifier");
                 e.printStackTrace();
             }
-
+            try {
+                rand.buildClassifier(data);
+            } catch (Exception e) {
+                Log.d(TAG, "Error building RandomForest classifier");
+                e.printStackTrace();
+            }
         }
 
         private void evaluateClassifier(Instances data, int num_clusters, ArrayList<Cluster> clusters) {
-
             try {
                 Evaluation eval = new Evaluation(data);
                 eval.crossValidateModel(tree, data, 10, new Random(System.nanoTime()));
 
                 EvaluationResult e = new EvaluationResult(
-                        eval.correct()/2,
+                        eval.correct()/eval.numInstances(),
                         eval.areaUnderROC(data.classIndex()),
                         eval.falsePositiveRate(data.attribute(data.classIndex()).indexOfValue(SHOW_NOTIFICATION)),
                         eval.falsePositiveRate(data.attribute(data.classIndex()).indexOfValue(HIDE_NOTIFICATION)),
@@ -331,17 +357,31 @@ public class ContentAnalysisService extends Service {
                         num_clusters
                 );
 
+                if (evaluationResult == null) evaluationResult = e;
+
                 if (e.isBetterThan(evaluationResult)) {
                     evaluationResult = e;
                     bestTree = tree;
                     OPTIMAL_NUM_CLUSTERS = num_clusters;
                     bestClusters = clusters;
                 }
-
+                /*
+                eval.crossValidateModel(rand, data, 10, new Random(System.nanoTime()));
+                e = new EvaluationResult(
+                        eval.correct()/eval.numInstances(),
+                        eval.areaUnderROC(data.classIndex()),
+                        eval.falsePositiveRate(data.attribute(data.classIndex()).indexOfValue(SHOW_NOTIFICATION)),
+                        eval.falsePositiveRate(data.attribute(data.classIndex()).indexOfValue(HIDE_NOTIFICATION)),
+                        eval.kappa(),
+                        num_clusters
+                );
+                Log.d(TAG, "random forest evaluation: " + e.toString());
+                */
             } catch (Exception e) {
                 e.printStackTrace();
                 Log.d(TAG, "Error when cross-validating");
             }
+
         }
 
         private void storeClassifier(Instances data) {
@@ -355,6 +395,14 @@ public class ContentAnalysisService extends Service {
                 Log.d(TAG, "writing classifier to file");
                 Log.d(TAG, evaluationResult.toString());
                 SerializationHelper.write(context.getFilesDir() + "/J48.model", bestTree);
+
+                BufferedWriter writer = new BufferedWriter(
+                        new FileWriter(context.getFilesDir() +"/J48.arff", false));
+                Log.d(TAG, "storing data: " + data.toSummaryString());
+                writer.write(data.toString());
+                writer.newLine();
+                writer.flush();
+                writer.close();
 
                 ContentValues values = new ContentValues();
                 values.put(J48Classifiers.Classifiers_Table.generate_timestamp, System.currentTimeMillis());

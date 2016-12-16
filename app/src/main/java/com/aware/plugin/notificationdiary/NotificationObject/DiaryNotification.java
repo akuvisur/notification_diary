@@ -43,19 +43,19 @@ public class DiaryNotification {
     public static final String CONTEXT_VARIABLE_TYPE_STRING = "CONTEXT_VARIABLE_TYPE_STRING";
     public static final String CONTEXT_VARIABLE_TYPE_DOUBLE = "CONTEXT_VARIABLE_TYPE_DOUBLE";
 
-    private static final AttributeWithType attribute_application_package = new AttributeWithType(UnsyncedData.Notifications_Table.application_package, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_notification_category = new AttributeWithType(UnsyncedData.Notifications_Table.notification_category, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_location = new AttributeWithType(UnsyncedData.Notifications_Table.location, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_activity = new AttributeWithType(UnsyncedData.Notifications_Table.activity, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_headphone_jack = new AttributeWithType(UnsyncedData.Notifications_Table.headphone_jack, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_screen_mode = new AttributeWithType(UnsyncedData.Notifications_Table.screen_mode, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_ringer_mode = new AttributeWithType(UnsyncedData.Notifications_Table.ringer_mode, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_battery_level= new AttributeWithType(UnsyncedData.Notifications_Table.battery_level, CONTEXT_VARIABLE_TYPE_DOUBLE);
-    private static final AttributeWithType attribute_network = new AttributeWithType(UnsyncedData.Notifications_Table.network_availability, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_wifi = new AttributeWithType(UnsyncedData.Notifications_Table.wifi_availability, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_foreground_app = new AttributeWithType(UnsyncedData.Notifications_Table.foreground_application_package, CONTEXT_VARIABLE_TYPE_STRING);
-    private static final AttributeWithType attribute_seen_delay = new AttributeWithType(SEEN_DELAY_SECONDS, CONTEXT_VARIABLE_TYPE_DOUBLE);
-    private static final AttributeWithType attribute_interaction_delay = new AttributeWithType(INTERACTION_DELAY_SECONDS, CONTEXT_VARIABLE_TYPE_DOUBLE);
+    public static final AttributeWithType attribute_application_package = new AttributeWithType(UnsyncedData.Notifications_Table.application_package, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_notification_category = new AttributeWithType(UnsyncedData.Notifications_Table.notification_category, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_location = new AttributeWithType(UnsyncedData.Notifications_Table.location, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_activity = new AttributeWithType(UnsyncedData.Notifications_Table.activity, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_headphone_jack = new AttributeWithType(UnsyncedData.Notifications_Table.headphone_jack, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_screen_mode = new AttributeWithType(UnsyncedData.Notifications_Table.screen_mode, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_ringer_mode = new AttributeWithType(UnsyncedData.Notifications_Table.ringer_mode, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_battery_level= new AttributeWithType(UnsyncedData.Notifications_Table.battery_level, CONTEXT_VARIABLE_TYPE_DOUBLE);
+    public static final AttributeWithType attribute_network = new AttributeWithType(UnsyncedData.Notifications_Table.network_availability, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_wifi = new AttributeWithType(UnsyncedData.Notifications_Table.wifi_availability, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_foreground_app = new AttributeWithType(UnsyncedData.Notifications_Table.foreground_application_package, CONTEXT_VARIABLE_TYPE_STRING);
+    public static final AttributeWithType attribute_seen_delay = new AttributeWithType(SEEN_DELAY_SECONDS, CONTEXT_VARIABLE_TYPE_DOUBLE);
+    public static final AttributeWithType attribute_interaction_delay = new AttributeWithType(INTERACTION_DELAY_SECONDS, CONTEXT_VARIABLE_TYPE_DOUBLE);
 
     private static final ArrayList<AttributeWithType> CONTEXT_VARIABLES = new ArrayList<>(Arrays.asList(
         attribute_application_package,

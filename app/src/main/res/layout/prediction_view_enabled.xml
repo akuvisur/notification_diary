@@ -1,98 +1,173 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical" android:layout_width="match_parent"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_height="match_parent"
-    android:padding="6dp">
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:text="@string/predictions_enabled"
-        android:id="@+id/textView12" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@android:color/darker_gray"/>
-
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:background="@drawable/dropshadow">
-
-        <LinearLayout
-            android:orientation="vertical"
-            android:layout_width="60dp"
-            android:layout_height="match_parent"
-            android:layout_centerVertical="true"
-            android:layout_alignParentEnd="true"
-            android:background="@color/colorAccent"
-            android:id="@+id/prediction_view_topbox_right">
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="50%"
-                    android:textSize="20sp"
-                    />
-        </LinearLayout>
+    android:layout_width="match_parent">
+    <LinearLayout
+        android:orientation="vertical" android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="6dp"
+        android:weightSum="1">
 
         <TextView
-            android:text="Here is some test describing the accuracy of the classifier using multiple lines if neeeded and or if possible or required"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_alignParentStart="true"
-            android:id="@+id/textView2"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentLeft="true"
-            android:layout_toStartOf="@+id/prediction_view_topbox_right"
-            android:padding="6dp"/>
-    </RelativeLayout>
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="@string/predictions_enabled"
+            android:id="@+id/textView12" />
 
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:background="@drawable/dropshadow">
-        <LinearLayout
-            android:orientation="vertical"
-            android:layout_width="60dp"
-            android:layout_height="match_parent"
-            android:layout_centerVertical="true"
-            android:layout_alignParentEnd="true"
-            android:background="@color/colorAccent"
-            android:id="@+id/prediction_view_bottombox_right">
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@android:color/darker_gray"/>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:background="@drawable/dropshadow">
+
             <TextView
-                android:layout_width="match_parent"
+                android:text="Here is some test describing the accuracy of the classifier using multiple lines if neeeded and or if possible or required"
+                android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                android:gravity="center"
-                android:text="75%"
+                android:layout_alignParentStart="true"
+                android:id="@+id/accuracy_description"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentLeft="true"
+                android:layout_toStartOf="@+id/accuracy_visualisation"
+                android:padding="6dp"/>
+
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="60dp"
+                android:layout_height="160dp"
+                android:background="@color/colorAccent"
+                android:id="@+id/accuracy_visualisation"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentBottom="true"></LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="right"
+                android:layout_gravity="center_vertical"
+                android:text="50%"
                 android:textSize="20sp"
+                android:id="@+id/model_accuracy"
+                android:layout_centerVertical="true"
+                android:layout_alignParentEnd="true"
+                android:layout_marginRight="2dp"/>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:background="@drawable/dropshadow">
+
+            <TextView
+                android:text="Words associated with important content:"
+                android:textStyle="bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:id="@+id/textView2"
+                android:layout_alignParentTop="true"
+                android:ellipsize="end"/>
+
+            <TextView
+                android:text="word1, word2, word3, word4, word5, word6, word7, word8, word9, word10"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:id="@+id/textView9"
+                android:layout_below="@+id/textView2"
+                android:layout_alignParentBottom="true"
+                android:layout_toStartOf="@+id/important_right_edge"
+                android:scrollHorizontally="true"
+                android:ellipsize="end"
+                android:maxLines="2"/>
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="20dp"
+                android:layout_height="match_parent"
+                android:layout_alignParentEnd="true"
+                android:background="@color/colorAccent"
+                android:layout_alignParentTop="true"
+                android:id="@+id/important_right_edge"></LinearLayout>
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:background="@drawable/dropshadow">
+
+            <TextView
+                android:text="Words associated with unimportant content:"
+                android:textStyle="bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentStart="true"
+                android:id="@+id/textView8"
+                android:ellipsize="end"/>
+
+            <TextView
+                android:text="word1, word2, word3, word4, word5, word6, word7, word8, word9, word10"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/textView8"
+                android:id="@+id/textView13"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@+id/unimportant_right_edge"
+                android:scrollHorizontally="true"
+                android:ellipsize="end"
+                android:maxLines="2"/>
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="20dp"
+                android:layout_height="match_parent"
+                android:layout_alignParentEnd="true"
+                android:background="@color/accent_red"
+                android:layout_alignParentTop="true"
+                android:id="@+id/unimportant_right_edge"></LinearLayout>
+        </RelativeLayout>
+
+
+        <Button
+            android:text="VIEW PREDICTED NOTIFICATIONS"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/launch_pred_act"
+            android:layout_marginTop="8dp"
+            android:background="@color/colorPrimaryLight"
+            />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+        <Button
+            android:text="GENERATE NEW MODEL"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/refresh_model"
+            android:layout_marginRight="8dp"
+            android:background="@color/colorPrimaryLight"
+            />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DISABLE PREDICTIONS"
+                android:id="@+id/disable_predictions"
+                android:background="@color/colorPrimaryLight"
                 />
         </LinearLayout>
+        <include layout="@layout/classifier_progress" />
 
-        <TextView
-            android:text="Here is some test describing the accuracy of the classifier using multiple lines if neeeded and or if possible or required"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_alignParentStart="true"
-            android:id="@+id/textView3"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentLeft="true"
-            android:layout_toStartOf="@+id/prediction_view_bottombox_right"
-            android:padding="6dp"/>
-    </RelativeLayout>
-
-    <Button
-        android:text="VIEW PREDICTED NOTIFICATIONS"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/launch_predact" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="DISABLE PREDICTIONS"
-        android:id="@+id/disable_predictions"/>
-
-</LinearLayout>
+    </LinearLayout>
+</ScrollView>

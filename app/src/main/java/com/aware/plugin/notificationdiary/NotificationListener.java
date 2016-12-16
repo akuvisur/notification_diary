@@ -1,6 +1,8 @@
 package com.aware.plugin.notificationdiary;
 
 import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -8,6 +10,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -28,6 +34,7 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.TextAppearanceSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.SoundEffectConstants;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RemoteViews;
@@ -37,14 +44,33 @@ import android.widget.Toast;
 import com.aware.Applications;
 import com.aware.Network;
 import com.aware.Screen;
+import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
+import com.aware.plugin.notificationdiary.ContentAnalysis.Node;
 import com.aware.plugin.notificationdiary.NotificationContext.InteractionContext;
+import com.aware.plugin.notificationdiary.NotificationObject.AttributeWithType;
+import com.aware.plugin.notificationdiary.NotificationObject.DiaryNotification;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
+import com.aware.plugin.notificationdiary.Providers.WordBins;
 import com.aware.providers.Applications_Provider;
+import com.aware.providers.Battery_Provider;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+
+import weka.classifiers.trees.J48;
+import weka.core.Attribute;
+import weka.core.DenseInstance;
+import weka.core.Instance;
+import weka.core.Instances;
+
+import static android.app.PendingIntent.FLAG_CANCEL_CURRENT;
+import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_UNLABELED_NOTIFICATIONS;
 
 public class NotificationListener extends NotificationListenerService {
     static final String TAG = "NotificationListener";
@@ -259,6 +285,7 @@ public class NotificationListener extends NotificationListenerService {
     //private static HashMap<MapKey, ArrayList<String>> arrivedNotifications = new HashMap<>();
     private static ArrayList<UnsyncedNotification> arrivedNotifications = new ArrayList<>();
 
+    J48 tree;
     public void onNotificationPosted(StatusBarNotification sbn) {
         super.onNotificationPosted(sbn);
         // dont bother storing since even if user swipes the foreground activity might remain as the same
@@ -267,6 +294,16 @@ public class NotificationListener extends NotificationListenerService {
         // if app in blacklist
         else if (AppManagement.BLACKLIST.contains(sbn.getPackageName())) {return;}
 
+        // if a notification should not be shown, remove it and don't store it
+        if (AppManagement.predictionsEnabled(context)) {
+            if (!shouldNotificationBeDisplayed(sbn)) {
+                hideNotification(sbn);
+                return;
+            }
+            else {
+                sendNotificationCue(sbn);
+            }
+        }
         // replace existing notifications from same apps to prevent "spamming" the user
         // also, these multiple notifications are not interacted with as they share the same
         // notification in the tray
@@ -314,6 +351,330 @@ public class NotificationListener extends NotificationListenerService {
 
         arrivedNotifications.add(unsynced);
         Log.d(TAG, "posted: "  + unsynced.title + " / " + unsynced.message);
+
+        // if the notification if any of the notifications posted by this app, dont try to
+        // repost the reminder notification
+        if (!sbn.getPackageName().equals(this.getPackageName())) {
+            Log.d(TAG, "sending notification");
+            helper = new UnsyncedData(context);
+            ArrayList unlabeled = helper.getUnlabeledNotifications();
+            if ((unlabeled.size() % AppManagement.getRandomNumberInRange(5, 15)) == 0) {
+                NotificationManager notificationManager = (NotificationManager)
+                        getSystemService(NOTIFICATION_SERVICE);
+                Intent launchIntent = new Intent(this, MainTabs.class);
+                PendingIntent pi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), launchIntent, FLAG_CANCEL_CURRENT);
+                Notification launch_notification = new Notification.Builder(this)
+                        .setContentTitle(unlabeled.size() + " unlabeled notifications")
+                        .setContentText("Click to launch Notification Diary")
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .setContentIntent(pi)
+                        .setAutoCancel(true)
+                        .build();
+                notificationManager.notify(NOTIFICATION_UNLABELED_NOTIFICATIONS, launch_notification);
+            }
+            helper.close();
+        }
+    }
+
+    private Boolean shouldNotificationBeDisplayed(StatusBarNotification sbn) {
+        // get classifier from file
+        Instances data = null;
+        try {
+            tree = (J48) weka.core.SerializationHelper.read(context.getFilesDir() + "/J48.model");
+
+            BufferedReader reader = new BufferedReader(
+                    new FileReader(context.getFilesDir() + "/J48.arff"));
+            data = new Instances(reader);
+            reader.close();
+            // setting class attribute
+            data.setClassIndex(0);
+
+        }
+        catch (Exception e) {
+            Log.d(TAG, "error reading classifier from file");
+            e.printStackTrace();
+            return true;
+        }
+
+        final int num_clusters = data.numAttributes() - 1 - DiaryNotification.CONTEXT_ATTRIBUTE_COUNT;
+
+        WordBins wordBins = new WordBins(context);
+        ArrayList<Integer> ids = wordBins.extractClusterIds(false);
+
+        ArrayList<Cluster> clusters = wordBins.extractAllClusters(context, false);
+        stopWordsEng = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.english)));
+        stopWordsFin = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.finnish)));
+
+        Notification n = sbn.getNotification();
+        getExtras(n);
+        loadTexts(this, n);
+
+        if (titleText == null) titleText = "";
+        if (messageText == null) messageText = "";
+        ArrayList<String> words = strip(titleText.toString(), messageText.toString());
+
+        // set attributes to evaluation instance from training_data
+        ArrayList<Attribute> attributes = new ArrayList<>();
+        for (int i = 0; i < (1+DiaryNotification.CONTEXT_ATTRIBUTE_COUNT + num_clusters); i++) {
+            if (i <= data.numAttributes()) attributes.add(i, data.attribute(i));
+        }
+        // TODO FIX THIS
+        if (attributes.size() < 1+DiaryNotification.CONTEXT_ATTRIBUTE_COUNT + num_clusters) return true;
+
+        Instances evaluated_notification = new Instances("evaluated_instance", attributes, 0);
+        Instance current_notification = new DenseInstance(1 + DiaryNotification.CONTEXT_ATTRIBUTE_COUNT + num_clusters);
+        ArrayList<AttributeWithType> context_attributes = UnsyncedNotification.getContextVariables();
+
+        // application package TYPE NOMINAL / STRING
+        try {
+            current_notification.setValue(
+                    data.attribute(DiaryNotification.attribute_application_package.name),
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_application_package)).name).indexOfValue(sbn.getPackageName())
+            );
+        } catch (IllegalArgumentException e) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_application_package)).name),
+                    -1
+            );
+        }
+
+        // notification category TYPE NOMINAL / STRING
+        if (sbn.getNotification().category == null) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_notification_category)).name),
+                    -1
+            );
+        }
+        else {
+            try {
+                current_notification.setValue(
+                        data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_notification_category)).name),
+                        data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_notification_category)).name).indexOfValue(sbn.getNotification().category)
+                );
+            } catch (IllegalArgumentException e) {
+                current_notification.setValue(
+                        data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_notification_category)).name),
+                        -1
+                );
+            }
+        }
+        // location TYPE NOMINAL / STRING
+        try {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_location)).name),
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_location)).name).indexOfValue(LOCATION)
+            );
+        }
+        catch (IllegalArgumentException e) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_location)).name),
+                    -1
+            );
+        }
+
+        // ACTIVITY
+        try {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_activity)).name),
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_activity)).name).indexOfValue(ACTIVITY)
+            );
+        }
+        catch (IllegalArgumentException e) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_activity)).name),
+                    -1
+            );
+        }
+
+        // HEADSET
+        try {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_headphone_jack)).name),
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_headphone_jack)).name).indexOfValue(HEADSET_STATUS)
+            );
+        }
+        catch (IllegalArgumentException e) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_headphone_jack)).name),
+                    -1
+            );
+        }
+
+        // SCREEN
+        try {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_screen_mode)).name),
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_screen_mode)).name).indexOfValue(SCREEN_STATE)
+            );
+        }
+        catch (IllegalArgumentException e) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_screen_mode)).name),
+                    -1
+            );
+        }
+
+        AudioManager am = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        switch (am.getRingerMode()) {
+            case AudioManager.RINGER_MODE_NORMAL:
+                try {
+                    current_notification.setValue(
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name),
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name).indexOfValue(InteractionContext.RINGER_NORMAL)
+                    );
+                }
+                catch (IllegalArgumentException e) {
+                    current_notification.setValue(
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name),
+                            -1
+                    );
+                }
+                break;
+            case AudioManager.RINGER_MODE_SILENT:
+                try {
+                    current_notification.setValue(
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name),
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name).indexOfValue(InteractionContext.RINGER_SILENT)
+                    );
+                }
+                catch (IllegalArgumentException e) {
+                    current_notification.setValue(
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name),
+                            -1
+                    );
+                }
+                break;
+            case AudioManager.RINGER_MODE_VIBRATE:
+                try {
+                    current_notification.setValue(
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name),
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name).indexOfValue(InteractionContext.RINGER_VIBRATE)
+                    );
+                }
+                catch (IllegalArgumentException e) {
+                    current_notification.setValue(
+                            data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name),
+                            -1
+                    );
+                }
+                break;
+            default:
+                current_notification.setValue(
+                        data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_ringer_mode)).name),
+                        -1
+                );
+                break;
+        }
+
+        Cursor battery_level = context.getContentResolver().query(Battery_Provider.Battery_Data.CONTENT_URI, null, null, null, "TIMESTAMP DESC LIMIT 1");
+        if (battery_level != null && battery_level.moveToFirst()) {
+            current_notification.setValue(data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_battery_level)).name), battery_level.getDouble(battery_level.getColumnIndex(Battery_Provider.Battery_Data.LEVEL)));
+            battery_level.close();
+        }
+
+        // network
+        try {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_network)).name),
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_network)).name).indexOfValue(NETWORK_AVAILABLE)
+            );
+        }
+        catch (IllegalArgumentException e) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_network)).name),
+                    -1
+            );
+        }
+
+        try {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_wifi)).name),
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_wifi)).name).indexOfValue(WIFI_AVAILABLE)
+            );
+        }
+        catch (IllegalArgumentException e) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_wifi)).name),
+                    -1
+            );
+        }
+
+        try {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_foreground_app)).name),
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_foreground_app)).name).indexOfValue(FOREGROUND_APP_PACKAGE)
+            );
+        }
+        catch (IllegalArgumentException e) {
+            current_notification.setValue(
+                    data.attribute(context_attributes.get(context_attributes.indexOf(DiaryNotification.attribute_foreground_app)).name),
+                    -1
+            );
+        }
+
+        UnsyncedData helper = new UnsyncedData(context);
+        ArrayList<UnsyncedNotification> notifications = helper.getUnlabeledNotifications();
+        helper.close();
+
+        for (UnsyncedNotification notification : notifications) {
+            if (notification.application_package != null && notification.generate_timestamp != null && notification.application_package.equals(sbn.getPackageName()) & (notification.notification_id == sbn.getId())) {
+                current_notification.setValue(data.attribute(DiaryNotification.attribute_seen_delay.name), (System.currentTimeMillis()-notification.generate_timestamp)/1000);
+            }
+        }
+        Collections.sort(clusters, new ClusterSizeComparator());
+
+        int word_count;
+        Cluster c;
+
+        for (Integer cluster_id : ids) {
+            c = wordBins.extractCluster(cluster_id, false);
+            word_count = 0;
+            for (Node node : c.getNodes()) {
+                if (words.contains(node.getValue())) word_count++;
+            }
+            current_notification.setValue(data.attribute(1+DiaryNotification.CONTEXT_ATTRIBUTE_COUNT+cluster_id), word_count);
+        }
+
+        evaluated_notification.add(current_notification);
+        evaluated_notification.setClassIndex(0);
+
+        try {
+            double result = tree.classifyInstance(evaluated_notification.firstInstance());
+            if (result < 0.5) {
+                Log.d(TAG, "classified: " + ContentAnalysisService.HIDE_NOTIFICATION);
+            }
+            else {
+                Log.d(TAG, "classified: " + ContentAnalysisService.SHOW_NOTIFICATION);
+            }
+            if (result < 0.5) return false; else return true;
+        }
+        catch (Exception e) {
+            Log.d(TAG, "could not classify");
+            e.printStackTrace();
+        }
+
+        wordBins.close();
+        return true;
+    }
+
+    private void hideNotification(StatusBarNotification sbn) {
+        Log.d(TAG, sbn.getId() + " from " + sbn.getPackageName() + " should have been hidden");
+        cancelNotification(sbn.getKey());
+    }
+
+    private void sendNotificationCue(StatusBarNotification sbn) {
+        RingtoneManager.getRingtone(this, sbn.getNotification().sound).play();
+    }
+
+    ArrayList<String> stopWordsEng;
+    ArrayList<String> stopWordsFin;
+    public ArrayList<String> strip(String title, String contents) {
+        String a = title + " " + contents;
+        a = a.toLowerCase().replaceAll("^[a-zA-Z0-9äöüÄÖÜ]", " ");
+        ArrayList<String> words = new ArrayList<>(Arrays.asList(a.split(" ")));
+        words.removeAll(stopWordsEng);
+        words.removeAll(stopWordsFin);
+        return words;
     }
 
     HashMap<StatusBarNotification, String> interactionForegroundApplications = new HashMap<>();
@@ -401,7 +762,6 @@ public class NotificationListener extends NotificationListenerService {
                 apps_run.close();
             }
             checkNotificationInteraction(notif, runApps);
-
         }
     }
 

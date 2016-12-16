@@ -20,6 +20,8 @@ public class ClassifierProgressReceiver extends BroadcastReceiver {
     TextView text;
     Context context;
 
+    public int progress = 0;
+
     public ClassifierProgressReceiver(RoundCornerProgressBar bar, TextView text, Context c) {
         this.bar = bar;
         this.text = text;
@@ -28,6 +30,7 @@ public class ClassifierProgressReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        progress = intent.getExtras().getInt(PROGRESS);
         bar.setProgress(intent.getExtras().getInt(PROGRESS));
         bar.setSecondaryProgress(intent.getExtras().getInt(PROGRESS)+10 > 100 ? 100 : intent.getExtras().getInt(PROGRESS));
         text.setText(intent.getExtras().getString(PROGRESS_LABEL));

@@ -5,13 +5,13 @@ version = version_readable
 group = "com.awareframework"
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion '24.0.3'
+    compileSdkVersion 25
+    buildToolsVersion '25.0.1'
 
     defaultConfig {
         applicationId "com.aware.plugin.notificationdiary"
         minSdkVersion 21
-        targetSdkVersion 24
+        targetSdkVersion 25
         versionCode 1
         versionName "1.0"
         multiDexEnabled true
@@ -35,15 +35,24 @@ android {
 
 }
 
+repositories {
+    maven { url "https://jitpack.io" }
+}
+
+configurations.all {
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile "com.awareframework:aware-core:${aware_libs}@aar"
-    compile 'com.android.support:design:24.2.1'
+    //compile "com.awareframework:aware-core:${aware_libs}@aar"
+    compile 'com.github.denzilferreira:aware-client:development-SNAPSHOT'
+    compile 'com.github.denzilferreira:com.aware.plugin.google.fused_location:development-SNAPSHOT'
+    compile 'com.android.support:design:25.0.1'
     compile 'com.android.support:multidex:1.0.1'
-    compile 'com.google.android.gms:play-services:9.6.1'
+    compile 'com.google.android.gms:play-services:10.0.1'
     compile 'com.akexorcist:RoundCornerProgressBar:2.0.3'
-    compile 'com.android.support:support-v4:24.2.1'
+    compile 'com.android.support:support-v4:25.0.1'
     compile 'nz.ac.waikato.cms.weka:weka-dev:3.7.10'
 }
 

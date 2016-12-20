@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.BATTERY_STATS" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE"/>
 
     <application
         android:allowBackup="true"
@@ -44,17 +45,14 @@
             android:enabled="true"
             android:exported="true" />
 
+        <service android:name=".NotificationAlarmManager" android:enabled="true" android:exported="true"/>
+
         <provider
             android:name=".Providers.Provider"
             android:authorities="${applicationId}.provider.notificationdiary"
             android:exported="true"
             android:readPermission="com.aware.READ_CONTEXT_DATA"
             android:writePermission="com.aware.WRITE_CONTEXT_DATA" />
-
-        <service
-            android:name=".Predictions.PredictionService"
-            android:enabled="true"
-            android:exported="true" />
 
         <activity
             android:name=".PredictionActivity"

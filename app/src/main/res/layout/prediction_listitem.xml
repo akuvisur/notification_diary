@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/dropshadow"
+    android:layout_marginTop="2dp">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="14dp"
+        android:background="@color/colorAccent"
+        android:id="@+id/listview_header"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="SHOWN NOTIFICATION"
+            android:textSize="12sp"
+            android:id="@+id/listview_header_text"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentBottom="true"
+            />
+
+        <TextView
+            android:text="12:12"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/timestamp"
+            android:textSize="12sp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentEnd="true" />
+    </RelativeLayout>
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="3dp">
+        <Button
+            android:layout_width="66dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/incorrect"
+            android:text="REJECT PREDICTION"
+            android:textSize="10sp"
+            android:layout_alignParentStart="true"
+            android:layout_alignTop="@+id/accept"
+            android:padding="0dp"/>
+
+        <TextView
+            android:text="Notification contents in a somewhat brief manner that should not take too many rows"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/contents"
+            android:textSize="14sp"
+            android:layout_below="@+id/accept"
+            android:layout_alignParentStart="true"
+            android:maxLines="3"
+            android:ellipsize="end"/>
+
+        <TextView
+            android:text="Application name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/application"
+            android:textSize="14sp"
+            android:layout_alignTop="@+id/incorrect"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_toEndOf="@+id/incorrect"
+            android:layout_toStartOf="@+id/accept"/>
+
+        <TextView
+            android:text="Notification Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/title"
+            android:textSize="16sp"
+            android:textColor="#333333"
+            android:layout_below="@+id/application"
+            android:layout_above="@+id/contents"
+            android:layout_toEndOf="@+id/incorrect"
+            android:layout_toStartOf="@id/accept"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <Button
+            android:layout_width="66dp"
+            android:layout_height="wrap_content"
+            android:text="ACCEPT PREDICTION"
+            android:textSize="10sp"
+            app:srcCompat="@drawable/quantum_ic_play_circle_filled_white_36"
+            android:id="@+id/accept"
+            android:padding="0dp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true" />
+    </RelativeLayout>
+
+</LinearLayout>

@@ -4,7 +4,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.text.format.DateFormat;
+import android.util.Log;
 
 //import com.neura.sdk.object.Permission;
 
@@ -19,18 +21,24 @@ import java.util.Random;
  * Created by aku on 14/11/16.
  */
 public class AppManagement {
+    private static final String TAG = "AppManagement";
+
     public static final String SHARED_PREFS = "com.aware.plugin.notificationdiary";
     public static final String TEST_COUNT = "TEST_COUNT";
     public static final String NUM_CLUSTERS = "OPTIMAL_NUM_CLUSTERS";
     public static final String PREDICTIONS_ENABLED = "PREDICTIONS_ENABLED";
+    public static final String RINGER_MODE = "RINGER_MODE";
+    public static final String SOUND_VOLUME = "SOUND_VOLUME";
 
     public static final int INTERACTION_CHECK_DELAY = 3000;
     public static final String INTERACTION_TYPE_SYSTEM_DISMISS = "system_dismiss";
     public static final String INTERACTION_TYPE_REPLACE = "replaced";
     public static final String INTERACTION_TYPE_DISMISS = "dismiss";
     public static final String INTERACTION_TYPE_CLICK = "click";
+    public static final String INTERACTION_TYPE_PREDICTION_HIDE = "prediction_hide";
 
     public static final int NOTIFICATION_UNLABELED_NOTIFICATIONS = 7812378;
+    public static final int NOTIFICATION_UNVERIFIED_PREDICTIONS = 98347734;
 
     public static long LAST_TOUCH = 0;
 
@@ -115,15 +123,33 @@ public class AppManagement {
         return clusters;
     }
 
+    public static void storeNewRingerMode(Context c, int mode, int volume) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        spe = sp.edit();
+
+        spe.putInt(RINGER_MODE, mode);
+        spe.putInt(SOUND_VOLUME, volume);
+        spe.apply();
+    }
+
+    public static int getRingerMode(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        return sp.getInt(RINGER_MODE, AudioManager.RINGER_MODE_VIBRATE);
+    }
+
+    public static int getSoundVolume(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        return sp.getInt(SOUND_VOLUME, 0);
+    }
 
     public static int getRandomNumberInRange(int min, int max) {
-
         if (min >= max) {
             throw new IllegalArgumentException("max must be greater than min");
         }
-
         Random r = new Random();
-        return r.nextInt((max - min) + 1) + min;
+        int random = r.nextInt((max - min) + 1) + min;
+        Log.d(TAG, "new random: " + random);
+        return random;
     }
 
     // locations

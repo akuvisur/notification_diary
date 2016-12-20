@@ -16,13 +16,13 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Total # hidden notifications"
+            android:text="Total # predictions"
             android:textSize="18sp"
             android:textColor="@color/colorPrimaryLight"
             android:layout_centerVertical="true"
             android:layout_alignParentStart="true"
             android:layout_toStartOf="@+id/predact_acceptall"
-            android:id="@+id/textView3"/>
+            android:id="@+id/num_predictions"/>
 
         <Button
             android:layout_width="wrap_content"
@@ -36,9 +36,8 @@
 
     <ListView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:id="@+id/predact_prediction_list"
-        android:layout_margin="6dp"
         android:padding="6dp"
         android:background="#DDDDDD"/>
 </LinearLayout>

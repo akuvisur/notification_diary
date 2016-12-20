@@ -59,6 +59,9 @@ public class ContentAnalysisService extends Service {
     private RandomForest rand;
 
     private ArrayList<Cluster> bestClusters;
+    private ArrayList<Cluster> curClusters;
+    private Instances data;
+    private Instances bestData;
 
     public ContentAnalysisService() {
         context = this;
@@ -110,7 +113,7 @@ public class ContentAnalysisService extends Service {
             bestClusters = wordBins.extractAllClusters(context, true);
 
             tree_db = new J48Classifiers(context);
-            previousEvaluationResult= tree_db.getCurrentClassifier();
+            previousEvaluationResult = tree_db.getCurrentClassifier();
 
             try {
                 bestTree = (J48) weka.core.SerializationHelper.read(context.getFilesDir() + "/J48.model");
@@ -126,6 +129,7 @@ public class ContentAnalysisService extends Service {
             // iterate through 10,15,20,25,30 clusters to determine best wordbin amount
             for (int num_clusters = 2; num_clusters <= 6; num_clusters++) {
                 ClusterGenerator gen = new ClusterGenerator(new Graph(context).getNodes(), num_clusters*5);
+                curClusters = gen.getClusters();
                 publishProgress(((num_clusters-1)*20)-15);
 
                 data = buildTrainingData(context, num_clusters*5);
@@ -144,7 +148,7 @@ public class ContentAnalysisService extends Service {
                 Log.d(TAG, "previous result seemed to be better");
             }
 
-            storeClassifier(data);
+            storeClassifier(bestData);
 
             wordBins.close();
             tree_db.close();
@@ -170,20 +174,14 @@ public class ContentAnalysisService extends Service {
             String[] options = new String[1];
             options[0] = "-U";
             tree = new J48();
-            rand = new RandomForest();
             try {
                 tree.setOptions(options);
-                rand.setOptions(options);
             }
             catch (Exception e) {e.printStackTrace();}
 
             UnsyncedData helper = new UnsyncedData(c);
             ArrayList<UnsyncedNotification> notifications = helper.getLabeledNotifications();
             helper.close();
-
-            WordBins helper2 = new WordBins(c);
-            ArrayList<Cluster> clusters = helper2.extractAllClusters(c, true);
-            helper2.close();
 
             // attributes are notification context + voice bins + class attribute
             ArrayList<Attribute> attributes = new ArrayList<>(DiaryNotification.CONTEXT_ATTRIBUTE_COUNT+num_clusters+1);
@@ -224,41 +222,54 @@ public class ContentAnalysisService extends Service {
                 instance = new DenseInstance(DiaryNotification.CONTEXT_ATTRIBUTE_COUNT + num_clusters + 1);
                 // every instance needs to be associated to a dataset
                 instance.setDataset(training_data);
-                // CLASS LABELS
-                // click means always show
-                if (n.interaction_type.equals(AppManagement.INTERACTION_TYPE_CLICK)) {
-                    //instance.setValue(attributes.getString(0), attributes.getString(0).addStringValue(SHOW_NOTIFICATION));
-                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
-                }
-                // if both are null, result is unknown so should SHOW
-                else if (n.timing_value == null & n.content_importance_value == null) {
-                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
-                }
-                // if timing is unsure but contents are important SHOW
-                else if (n.timing_value == null & n.content_importance_value != null && n.content_importance_value >= 3) {
-                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
-                }
-                // if timing is unsure but contents are irrelevant HIDE
-                else if (n.timing_value == null & n.content_importance_value != null && n.content_importance_value < 3) {
-                    //instance.setValue(attributes.getString(0), attributes.getString(0).addStringValue(HIDE_NOTIFICATION));
-                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
-                }
-                // if content is unsure but timing was approriate SHOW
-                else if ((n.content_importance_value == null) && (n.timing_value >= 3)) {
-                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
-                }
-                // if timing unapproriate HIDE
-                else if ((n.content_importance_value == null) && (n.timing_value < 3)) {
-                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
-                }
-                // finally if both exist, calculate weighted average (timing * 0.3 + content * 0.7) SHOW
-                else if (n.content_importance_value != null && n.timing_value != null && (n.content_importance_value * 0.7)+(n.timing_value * 0.3) >= 3) {
-                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
-                } // HIDE
-                else {
-                    instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
-                }
 
+                // if we have user verification on our training data
+                if (n.prediction_corrent > 0) {
+                    if (n.predicted_as_show == 1) {
+                        if (n.prediction_corrent == 1) instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                        else instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
+                    }
+                    else {
+                        if (n.prediction_corrent == 1) instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
+                        else instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                    }
+                }
+                else {
+                    // CLASS LABELS
+                    // click means always show
+                    if (n.interaction_type.equals(AppManagement.INTERACTION_TYPE_CLICK)) {
+                        //instance.setValue(attributes.getString(0), attributes.getString(0).addStringValue(SHOW_NOTIFICATION));
+                        instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                    }
+                    // if both are null, result is unknown so should SHOW
+                    else if (n.timing_value == null & n.content_importance_value == null) {
+                        instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                    }
+                    // if timing is unsure but contents are important SHOW
+                    else if (n.timing_value == null & n.content_importance_value != null && n.content_importance_value >= 3) {
+                        instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                    }
+                    // if timing is unsure but contents are irrelevant HIDE
+                    else if (n.timing_value == null & n.content_importance_value != null && n.content_importance_value < 3) {
+                        //instance.setValue(attributes.getString(0), attributes.getString(0).addStringValue(HIDE_NOTIFICATION));
+                        instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
+                    }
+                    // if content is unsure but timing was approriate SHOW
+                    else if ((n.content_importance_value == null) && (n.timing_value >= 3)) {
+                        instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                    }
+                    // if timing unapproriate HIDE
+                    else if ((n.content_importance_value == null) && (n.timing_value < 3)) {
+                        instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
+                    }
+                    // finally if both exist, calculate weighted average (timing * 0.3 + content * 0.7) SHOW
+                    else if (n.content_importance_value != null && n.timing_value != null && (n.content_importance_value * 0.7) + (n.timing_value * 0.3) >= 3) {
+                        instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                    } // HIDE
+                    else {
+                        instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
+                    }
+                }
                 // add remaining raw values
                 for (AttributeWithType context_variable : UnsyncedNotification.getContextVariables()) {
                     if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_STRING) & attributeValuesMap.containsKey(context_variable.name)) {
@@ -270,9 +281,9 @@ public class ContentAnalysisService extends Service {
                 }
 
                 // word bins
-                for (int i = 0; i < num_clusters; i++) {
+                for (int i = 0; i < curClusters.size(); i++) {
                     word_count = 0;
-                    Cluster cluster = clusters.get(i);
+                    Cluster cluster = curClusters.get(i);
                     words = strip(n.title, n.message);
                     for (Node node : cluster.getNodes()) {
                         if (words.contains(node.getValue())) word_count++;
@@ -335,12 +346,14 @@ public class ContentAnalysisService extends Service {
                 Log.d(TAG, "Error building J48 classifier");
                 e.printStackTrace();
             }
+            /*
             try {
                 rand.buildClassifier(data);
             } catch (Exception e) {
                 Log.d(TAG, "Error building RandomForest classifier");
                 e.printStackTrace();
             }
+            */
         }
 
         private void evaluateClassifier(Instances data, int num_clusters, ArrayList<Cluster> clusters) {
@@ -362,6 +375,7 @@ public class ContentAnalysisService extends Service {
                 if (e.isBetterThan(evaluationResult)) {
                     evaluationResult = e;
                     bestTree = tree;
+                    bestData = data;
                     OPTIMAL_NUM_CLUSTERS = num_clusters;
                     bestClusters = clusters;
                 }
@@ -377,8 +391,8 @@ public class ContentAnalysisService extends Service {
                 );
                 Log.d(TAG, "random forest evaluation: " + e.toString());
                 */
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (Exception ex) {
+                ex.printStackTrace();
                 Log.d(TAG, "Error when cross-validating");
             }
 
@@ -393,13 +407,12 @@ public class ContentAnalysisService extends Service {
             wordBins = new WordBins(context);
             try {
                 Log.d(TAG, "writing classifier to file");
-                Log.d(TAG, evaluationResult.toString());
                 SerializationHelper.write(context.getFilesDir() + "/J48.model", bestTree);
 
                 BufferedWriter writer = new BufferedWriter(
                         new FileWriter(context.getFilesDir() +"/J48.arff", false));
-                Log.d(TAG, "storing data: " + data.toSummaryString());
-                writer.write(data.toString());
+                Log.d(TAG, "storing data: " + bestData.toSummaryString());
+                writer.write(bestData.toString());
                 writer.newLine();
                 writer.flush();
                 writer.close();

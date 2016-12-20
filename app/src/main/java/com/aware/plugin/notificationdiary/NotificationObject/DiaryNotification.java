@@ -39,6 +39,10 @@ public class DiaryNotification {
     public Double timing_value;
     public Double content_importance_value;
 
+    // predictions
+    public Integer predicted_as_show;
+    public Integer prediction_corrent;
+
     // context variables and types
     public static final String CONTEXT_VARIABLE_TYPE_STRING = "CONTEXT_VARIABLE_TYPE_STRING";
     public static final String CONTEXT_VARIABLE_TYPE_DOUBLE = "CONTEXT_VARIABLE_TYPE_DOUBLE";
@@ -138,9 +142,16 @@ public class DiaryNotification {
     }
 
     public Double getDouble(String s) {
-        if (s.equals(UnsyncedData.Notifications_Table.battery_level)) return Double.valueOf(battery_level);
-        else if (s.equals(SEEN_DELAY_SECONDS)) return (double) getSeenDelaySeconds();
-        else if (s.equals(INTERACTION_DELAY_SECONDS)) return (double) getInteractionDelaySeconds();
+        try {
+            if (s.equals(UnsyncedData.Notifications_Table.battery_level))
+                return Double.valueOf(battery_level);
+            else if (s.equals(SEEN_DELAY_SECONDS)) return (double) getSeenDelaySeconds();
+            else if (s.equals(INTERACTION_DELAY_SECONDS))
+                return (double) getInteractionDelaySeconds();
+        }
+        catch (NumberFormatException e) {
+            return -1.0;
+        }
         return -1.0;
     }
 

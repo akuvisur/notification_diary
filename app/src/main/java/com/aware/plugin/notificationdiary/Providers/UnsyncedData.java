@@ -26,7 +26,7 @@ import static com.aware.plugin.notificationdiary.ContentAnalysisService.EMPTY_VA
 public class UnsyncedData extends SQLiteOpenHelper {
     private static final String TAG = "UnsyncedData.class";
 
-    private static final int DATABASE_VERSION = 8;
+    private static final int DATABASE_VERSION = 10;
     private static final String DATABASE_NAME = "unsynced_notifications";
 
     public static final class Notifications_Table implements Provider.AWAREColumns {
@@ -61,6 +61,9 @@ public class UnsyncedData extends SQLiteOpenHelper {
 
         public static String title = "title";
         public static String message = "message";
+
+        public static String predicted_as_show = "predicted_as_show";
+        public static String prediction_correct = "prediction_correct";
     }
 
     //Define each database table fields
@@ -93,7 +96,11 @@ public class UnsyncedData extends SQLiteOpenHelper {
             Notifications_Table.content_importance + " REAL, " +
             Notifications_Table.timing + " REAL, " +
             Notifications_Table.title + " TEXT, " +
-            Notifications_Table.message + " TEXT);";
+            Notifications_Table.message + " TEXT, " +
+
+            // prediction results
+            Notifications_Table.predicted_as_show + " integer, " +
+            Notifications_Table.prediction_correct + " integer);";
 
     public UnsyncedData(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -135,7 +142,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         database.close();
     }
 
-    public ArrayList<UnsyncedNotification> getUnlabeledNotifications() {
+    public ArrayList<UnsyncedNotification> getUnlabeledNotifications(boolean closeAfter) {
         init();
         ArrayList<UnsyncedNotification> result = new ArrayList<>();
 
@@ -163,7 +170,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
             Log.d(TAG, "cursor was null");
         }
         Log.d(TAG, "done: " + result.size());
-        database.close();
+        if (closeAfter) database.close();
         return result;
     }
 
@@ -176,7 +183,8 @@ public class UnsyncedData extends SQLiteOpenHelper {
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
                 UnsyncedData.Notifications_Table.seen + "=? AND ((" + Notifications_Table.labeled + "=? AND " +
-                        Notifications_Table.interaction_type + "=?) OR " + Notifications_Table.interaction_type + "=?)",
+                        Notifications_Table.interaction_type + "=?) OR " + Notifications_Table.interaction_type + "=?) OR "
+                + Notifications_Table.prediction_correct + " > -1",
                 new String[]{"1", "1", AppManagement.INTERACTION_TYPE_DISMISS, AppManagement.INTERACTION_TYPE_CLICK},
                 null, null,
                 UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
@@ -205,6 +213,8 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));;
                 u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
                 u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
+                u.predicted_as_show = cursor.getString(cursor.getColumnIndex(Notifications_Table.predicted_as_show)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
+                u.prediction_corrent = cursor.getString(cursor.getColumnIndex(Notifications_Table.prediction_correct)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
                 result.add(u);
             }
             cursor.close();
@@ -253,11 +263,52 @@ public class UnsyncedData extends SQLiteOpenHelper {
         return result;
     }
 
+    public ArrayList<Prediction> getPredictions() {
+        init();
+        ArrayList<Prediction> result = new ArrayList<>();
+        Cursor cursor = database.query(DATABASE_NAME,
+                new String[]{Notifications_Table.title, Notifications_Table.message, Notifications_Table.application_package, Notifications_Table._ID, Notifications_Table.seen_timestamp, Notifications_Table.predicted_as_show},
+                Notifications_Table.predicted_as_show + " > -1 AND " + Notifications_Table.prediction_correct + " IS NULL",
+                null, null, null, null);
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                result.add(new Prediction(
+                        cursor.getString(cursor.getColumnIndex(Notifications_Table.message)),
+                        cursor.getString(cursor.getColumnIndex(Notifications_Table.title)),
+                        cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package)),
+                        cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)),
+                        cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp)),
+                        cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show))
+                        ));
+            }
+            cursor.close();
+        }
+
+        return result;
+    }
+
+    public class Prediction {
+        public String text;
+        public String title;
+        public String package_name;
+        public int sqlite_id;
+        public long timestamp;
+        public int predicted_as_show;
+        public Prediction(String text, String title, String package_name, int sqlite_id, long timestamp, int predicted_as_show) {
+            this.text = text;
+            this.title = title;
+            this.package_name = package_name;
+            this.sqlite_id = sqlite_id;
+            this.timestamp = timestamp;
+            this.predicted_as_show = predicted_as_show;
+        }
+    }
+
     public class NotificationText {
         public String title;
         public String contents;
         public NotificationText(String title, String contents) {
-
             this.title = title;
             this.contents = contents;
         }

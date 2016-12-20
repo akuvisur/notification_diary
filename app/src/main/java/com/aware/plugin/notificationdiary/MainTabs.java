@@ -51,6 +51,7 @@ import com.akexorcist.roundcornerprogressbar.RoundCornerProgressBar;
 import com.aware.Applications;
 import com.aware.Aware;
 import com.aware.Aware_Preferences;
+import com.aware.Locations;
 import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
 import com.aware.plugin.notificationdiary.Providers.J48Classifiers;
@@ -131,15 +132,25 @@ public class MainTabs extends AppCompatActivity {
 
         AppManagement.init(this);
 
-        Aware.startAWARE();
-
         REQUIRED_PERMISSIONS.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_FINE_LOCATION);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_WIFI_STATE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_NETWORK_STATE);
+        REQUIRED_PERMISSIONS.add(Manifest.permission.VIBRATE);
 
+        // change page to prediction tab if needed
+        if (getIntent() != null & getIntent().hasExtra(START_WITH_TAB)) {
+            if (getIntent().getStringExtra(START_WITH_TAB).equals(PREDICTION_TAB))  mViewPager.setCurrentItem(1);
+        }
+
+
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
         PackageManager pm = getPackageManager();
         boolean allPermissionsOk = true;
         for (String perm : REQUIRED_PERMISSIONS) {
@@ -164,14 +175,23 @@ public class MainTabs extends AppCompatActivity {
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    Aware.setSetting(context, Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND, true);
+                    if (!Aware.isStudy(context)) Aware.joinStudy(context, "https://api.awareframework.com/index.php/webservice/index/980/5jg027moJgWg");
+                    Aware.startAWARE();
+
                     Aware.setSetting(context, Applications.STATUS_AWARE_ACCESSIBILITY, true);
                     Aware.setSetting(context, Aware_Preferences.STATUS_APPLICATIONS, true);
+                    Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_GPS, true);
+                    Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_NETWORK, true);
+
                     Aware.startApplications(context);
                     Aware.startBattery(context);
                     Aware.startScreen(context);
                     Aware.startNetwork(context);
                     Aware.startLocations(context);
+
+                    Aware.startPlugin(context, "com.aware.plugin.google.fused_location");
+
+                    //Aware.setSetting(Settings., value);
 
                     isAccessibilityServiceActive(context);
 
@@ -188,20 +208,16 @@ public class MainTabs extends AppCompatActivity {
 
         }
         else {
-            Aware.setSetting(this, Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND, false);
             Aware.setSetting(this, Applications.STATUS_AWARE_ACCESSIBILITY, false);
             Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, false);
+            Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_GPS, false);
+            Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_NETWORK, false);
 
             Aware.stopBattery(this);
             Aware.stopScreen(this);
             Aware.stopNetwork(this);
             Aware.stopLocations(this);
             Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
-        }
-
-        // change page to prediction tab if needed
-        if (getIntent() != null & getIntent().hasExtra(START_WITH_TAB)) {
-            if (getIntent().getStringExtra(START_WITH_TAB).equals(PREDICTION_TAB))  mViewPager.setCurrentItem(1);
         }
     }
 
@@ -335,6 +351,34 @@ public class MainTabs extends AppCompatActivity {
         remainingNotifications = fetchRemainingNotifications(c);
         emptyView = inflater.inflate(R.layout.diary_view_empty, container, false);
         if (remainingNotifications.size() == 0) {
+            if (DEBUG) {
+                Button b = new Button(context);
+                b.setText("POST NOTIFICATION");
+                b.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+
+                        new Handler().postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                NotificationCompat.Builder builder = (NotificationCompat.Builder) new NotificationCompat.Builder(context)
+                                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                                        .setContentTitle("a"+System.currentTimeMillis())
+                                        .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                                        .setContentText("asdf!" + System.currentTimeMillis());
+                                NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+                                notificationManager.notify((int) (System.currentTimeMillis() % 12345), builder.build());
+                            }
+                        },2000);
+
+                        Intent startMain = new Intent(Intent.ACTION_MAIN);
+                        startMain.addCategory(Intent.CATEGORY_HOME);
+                        startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(startMain);
+                    }
+                });
+                ((LinearLayout) emptyView.findViewById(R.id.header)).addView(b);
+            }
             return emptyView;
         }
         final View rootView = inflater.inflate(R.layout.diary_view, container, false);
@@ -566,7 +610,7 @@ public class MainTabs extends AppCompatActivity {
 
     private List<UnsyncedNotification> fetchRemainingNotifications(Context c) {
         UnsyncedData helper = new UnsyncedData(c);
-        return helper.getUnlabeledNotifications();
+        return helper.getUnlabeledNotifications(true);
     }
 
     private void skipAll(String package_name, Context c) {
@@ -605,6 +649,7 @@ public class MainTabs extends AppCompatActivity {
 
             refresh_model = (Button) rootView.findViewById(R.id.refresh_model);
             launch_pred_act = (Button) rootView.findViewById(R.id.launch_pred_act);
+
             disable_pred = (Button) rootView.findViewById(R.id.disable_predictions);
             model_accuracy = (TextView) rootView.findViewById(R.id.model_accuracy);
             accuracy_description = (TextView) rootView.findViewById(R.id.accuracy_description);
@@ -623,7 +668,7 @@ public class MainTabs extends AppCompatActivity {
                         @Override
                         public void run() {
                             refresh_model.setEnabled(false);
-                            progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c);
+                            progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c, refresh_model);
                             IntentFilter filt = new IntentFilter();
                             filt.addAction(ClassifierProgressReceiver.ACTION);
                             c.registerReceiver(progressReceiver, filt);
@@ -659,18 +704,18 @@ public class MainTabs extends AppCompatActivity {
             J48Classifiers modelInfo = new J48Classifiers(c);
             EvaluationResult curResult = modelInfo.getCurrentClassifier();
 
-            model_accuracy.setText(new DecimalFormat("#.0").format(curResult.accuracy) + "%");
+            model_accuracy.setText(new DecimalFormat("#.0").format(curResult.accuracy*100) + "%");
 
             ViewGroup.LayoutParams params = accuracy_visualisation.getLayoutParams();
-            params.height = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (float) (curResult.accuracy*1.6), getResources().getDisplayMetrics());
+            params.height = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (float) (curResult.accuracy*160), getResources().getDisplayMetrics());
             accuracy_visualisation.setLayoutParams(params);
-            if (curResult.accuracy < 80) accuracy_visualisation.setBackgroundColor(ContextCompat.getColor(c, R.color.accent_yellow));
-            if (curResult.accuracy < 60) accuracy_visualisation.setBackgroundColor(ContextCompat.getColor(c, R.color.accent_red));
+            if (curResult.accuracy < .8) accuracy_visualisation.setBackgroundColor(ContextCompat.getColor(c, R.color.accent_yellow));
+            if (curResult.accuracy < .6) accuracy_visualisation.setBackgroundColor(ContextCompat.getColor(c, R.color.accent_red));
 
             DecimalFormat df = new DecimalFormat("#.0");
 
             accuracy_description.setText(
-                    Html.fromHtml("The overall accuracy of the model is <b>" + df.format(curResult.accuracy) + "%</b>. " +
+                    Html.fromHtml("The overall accuracy of the model is <b>" + df.format(curResult.accuracy*100) + "%</b>. " +
                     "It has approximately <b>" + df.format(curResult.hide_false_positive*100) + "%</b> probability of mistakenly hiding arriving notification and <b>" +
                     df.format(curResult.show_false_positive*100) + "%</b> probability of showing an unwanted notification. " +
                     "Finally, using the Kappa statistic the model is approximately <b>" + df.format(curResult.kappa*100) + "%</b> better at prediction than a random guess.")
@@ -690,7 +735,7 @@ public class MainTabs extends AppCompatActivity {
                     new Handler().postDelayed(new ContextRunnable(c) {
                         @Override
                         public void run() {
-                            progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c);
+                            progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c, refresh_model);
                             IntentFilter filt = new IntentFilter();
                             filt.addAction(ClassifierProgressReceiver.ACTION);
                             c.registerReceiver(progressReceiver, filt);
@@ -705,14 +750,16 @@ public class MainTabs extends AppCompatActivity {
                 }
             });
             UnsyncedData helper = new UnsyncedData(c);
-            if (helper.getNumOfTrainingData() >= 100) enable_predictions.setEnabled(true);
+            int training_data_amount = helper.getNumOfTrainingData();
+            if (training_data_amount >= 100) enable_predictions.setEnabled(true);
+            if (DEBUG) enable_predictions.setEnabled(true);
+
+            classifier_progress = (RoundCornerProgressBar) rootView.findViewById(R.id.classifier_progress);
+            classifier_progress_text = (TextView) rootView.findViewById(R.id.classifier_progress_text);
 
             if (progressReceiver != null && progressReceiver.progress == 0) {
-                classifier_progress = (RoundCornerProgressBar) rootView.findViewById(R.id.classifier_progress);
                 classifier_progress.setVisibility(View.INVISIBLE);
-
-                classifier_progress_text = (TextView) rootView.findViewById(R.id.classifier_progress_text);
-                classifier_progress.setVisibility(View.INVISIBLE);
+                classifier_progress_text.setVisibility(View.INVISIBLE);
             }
             else if (progressReceiver != null) {
                 classifier_progress.setProgress((float) progressReceiver.progress);
@@ -720,6 +767,9 @@ public class MainTabs extends AppCompatActivity {
 
                 classifier_progress_text.setText(progressReceiver.progress + "% complete");
             }
+
+            classifier_progress.setProgress((float) training_data_amount);
+            classifier_progress_text.setText(training_data_amount + " / 100 labeled notifications");
 
             return rootView;
         }

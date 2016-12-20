@@ -28,12 +28,11 @@ public class InteractionContext {
     HashMap<String, String> c = new HashMap<>();
 
     public InteractionContext(Context context) {
-        // TODO google activity api thing
+        // ACTIIVTY
         c.put(UnsyncedData.Notifications_Table.activity, NotificationListener.ACTIVITY);
 
-        // TODO google geofences thing
-        // https://dev.theneura.com/docs/guide/android/setup
-        c.put(UnsyncedData.Notifications_Table.location, "");
+        // LOCATION
+        c.put(UnsyncedData.Notifications_Table.location, NotificationListener.LOCATION);
 
         // WIFI AND NETWORK AVAILABILITY
         c.put(UnsyncedData.Notifications_Table.network_availability, NotificationListener.NETWORK_AVAILABLE);

@@ -36,13 +36,14 @@ public class EvaluationResult {
     }
 
     public boolean isBetterThan(EvaluationResult e) {
+        if (e == null) return true;
         return getOverallAccuracy() > e.getOverallAccuracy();
     }
 
     private double getOverallAccuracy() {
-        Log.d(TAG, this.hashCode() + ": overall accuracy" + ((accuracy/100+roc_area)/2+((1-show_false_positive)+2*(1-hide_false_positive))/3+kappa)/3);
+        Log.d(TAG, this.hashCode() + ": overall accuracy" + ((accuracy+roc_area)/2+((1-show_false_positive)+2*(1-hide_false_positive))/3+kappa)/3);
         return (
-                ((accuracy/100+roc_area)/2+((1-show_false_positive)+2*(1-hide_false_positive))/3+kappa)/3
+                ((accuracy+roc_area)/2+((1-show_false_positive)+2*(1-hide_false_positive))/3+kappa)/3
         );
     }
 

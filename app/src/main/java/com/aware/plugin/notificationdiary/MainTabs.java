@@ -221,18 +221,18 @@ public class MainTabs extends AppCompatActivity {
         else {
             Aware.setSetting(this, Applications.STATUS_AWARE_ACCESSIBILITY, false);
             Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, false);
-            Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_GPS, false);
-            Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_NETWORK, false);
+            Aware.setSetting(this, Aware_Preferences.STATUS_LOCATION_GPS, false);
+            Aware.setSetting(this, Aware_Preferences.STATUS_LOCATION_NETWORK, false);
 
             Aware.stopBattery(this);
             Aware.stopScreen(this);
             Aware.stopNetwork(this);
             Aware.stopLocations(this);
+            Aware.stopPlugin(this, "com.aware.plugin.google.fused_location");
             Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
         }
-        AppManagement.enablePredictions(context, false);
-        AppManagement.setOwnNotificationsHidden(context, false);
-        AppManagement.setSoundControlAllowed(context, true);
+
+        Log.d(TAG, "plugin set to on " + Aware.getSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY));
     }
 
     @Override

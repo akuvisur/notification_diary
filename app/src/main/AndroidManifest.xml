@@ -21,16 +21,16 @@
         android:theme="@style/AppTheme"
         tools:replace="android:icon, android:theme">
         <service
-            android:name=".NotificationListener"
+            android:name="com.aware.plugin.notificationdiary.NotificationListener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-        <service android:name=".ActivityService" />
+        <service android:name="com.aware.plugin.notificationdiary.ActivityService" />
 
         <activity
-            android:name=".MainTabs"
+            android:name="com.aware.plugin.notificationdiary.MainTabs"
             android:label="@string/title_activity_main_tabs"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
@@ -41,21 +41,27 @@
         </activity>
 
         <service
-            android:name=".ContentAnalysisService"
+            android:name="com.aware.plugin.notificationdiary.ContentAnalysisService"
             android:enabled="true"
             android:exported="true" />
 
-        <service android:name=".NotificationAlarmManager" android:enabled="true" android:exported="true"/>
+        <service android:name="com.aware.plugin.notificationdiary.NotificationAlarmManager"
+            android:enabled="true"
+            android:exported="true"/>
+
+        <service android:name="com.aware.plugin.notificationdiary.Plugin"
+            android:enabled="true"
+            android:exported="true"/>
 
         <provider
-            android:name=".Providers.Provider"
+            android:name="com.aware.plugin.notificationdiary.Providers.Provider"
             android:authorities="${applicationId}.provider.notificationdiary"
             android:exported="true"
             android:readPermission="com.aware.READ_CONTEXT_DATA"
             android:writePermission="com.aware.WRITE_CONTEXT_DATA" />
 
         <activity
-            android:name=".PredictionActivity"
+            android:name="com.aware.plugin.notificationdiary.PredictionActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="@string/title_activity_prediction"
             android:theme="@style/FullscreenTheme"></activity>

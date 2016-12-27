@@ -30,8 +30,6 @@ public class Provider extends ContentProvider {
      */
     public static String AUTHORITY = "com.aware.plugin.notificationdiary.provider.notificationdiary";
 
-    public static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY);
-
     public static final String DATABASE_NAME = "plugin_notificationdiary.db";
 
     public static final String DB_TBL_NOTIFICATIONS = "notificationdiary_notifications";
@@ -54,7 +52,7 @@ public class Provider extends ContentProvider {
          * Your ContentProvider table content URI.<br/>
          * The last segment needs to match your database table name
          */
-        public static final Uri CONTENT_URI = Uri.withAppendedPath(Provider.CONTENT_URI, DB_TBL_NOTIFICATIONS);
+        public static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY + "/" + DB_TBL_NOTIFICATIONS);
         public static final String CONTENT_TYPE = ContentResolver.CURSOR_DIR_BASE_TYPE + "vnd.android.cursor.dir/vnd.aware.plugin.notificationdiary";
         public static final String CONTENT_ITEM_TYPE = ContentResolver.CURSOR_ITEM_BASE_TYPE +"vnd.android.cursor.item/vnd.aware.plugin.notificationdiary";
 
@@ -93,7 +91,7 @@ public class Provider extends ContentProvider {
         private Predictions_Data() {
         }
 
-        public static final Uri CONTENT_URI = Uri.withAppendedPath(Provider.CONTENT_URI, DB_TBL_PREDICTIONS);
+        public static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY + "/" + DB_TBL_PREDICTIONS);
         public static final String CONTENT_TYPE = ContentResolver.CURSOR_DIR_BASE_TYPE + "vnd.android.cursor.dir/vnd.aware.plugin.notificationdiary";
         public static final String CONTENT_ITEM_TYPE = ContentResolver.CURSOR_ITEM_BASE_TYPE + "vnd.android.cursor.item/vnd.aware.plugin.notificationdiary";
 

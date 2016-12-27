@@ -39,6 +39,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.animation.AnimationUtils;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.RatingBar;
@@ -61,6 +62,7 @@ import com.aware.ui.PermissionsHandler;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+
 
 public class MainTabs extends AppCompatActivity {
 
@@ -122,6 +124,9 @@ public class MainTabs extends AppCompatActivity {
                     case 2:
                         toolbar.setTitle("Help");
                         break;
+                    case 3:
+                        toolbar.setTitle("Settings");
+                        break;
                 }
             }
             @Override
@@ -172,6 +177,9 @@ public class MainTabs extends AppCompatActivity {
 
         if (allPermissionsOk) {
             Log.d(TAG, "All is good.");
+            Intent startAware = new Intent(this, Aware.class);
+            startService(startAware);
+
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -190,14 +198,17 @@ public class MainTabs extends AppCompatActivity {
                     Aware.startLocations(context);
 
                     Aware.startPlugin(context, "com.aware.plugin.google.fused_location");
-
-                    //Aware.setSetting(Settings., value);
+                    // "start" this "plugin" so AWARE understands its running and syncs the data
+                    Aware.startPlugin(context, "com.aware.plugin.notificationdiary");
 
                     isAccessibilityServiceActive(context);
 
                     SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
                     int test_count = sp.getInt(AppManagement.TEST_COUNT, 0);
                     if (test_count <= 5) {
+                        AppManagement.enablePredictions(context, false);
+                        AppManagement.setOwnNotificationsHidden(context, false);
+                        AppManagement.setSoundControlAllowed(context, true);
                         Toast.makeText(context, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
                     }
 
@@ -219,6 +230,9 @@ public class MainTabs extends AppCompatActivity {
             Aware.stopLocations(this);
             Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
         }
+        AppManagement.enablePredictions(context, false);
+        AppManagement.setOwnNotificationsHidden(context, false);
+        AppManagement.setSoundControlAllowed(context, true);
     }
 
     @Override
@@ -257,6 +271,11 @@ public class MainTabs extends AppCompatActivity {
 
         else if (id == R.id.action_help) {
             mViewPager.setCurrentItem(2);
+            return true;
+        }
+
+        else if (id == R.id.action_settings) {
+            mViewPager.setCurrentItem(3);
             return true;
         }
 
@@ -331,6 +350,8 @@ public class MainTabs extends AppCompatActivity {
                     return activity.generatePredictionView(context,inflater, container);
                 case 3:
                     return activity.generateHelpView(context,inflater, container);
+                case 4:
+                    return activity.generateSettingsView(context, inflater, container);
                 default:
                     return activity.generateDiaryView(context, inflater, container);
             }
@@ -478,7 +499,12 @@ public class MainTabs extends AppCompatActivity {
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
                 UnsyncedData helper = new UnsyncedData(context);
-                helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values);
+                helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
+
+                if (!AppManagement.predictionsEnabled(context)) {
+                    UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
+                    getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues());
+                }
 
                 remainingNotifications.remove(0);
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
@@ -500,7 +526,12 @@ public class MainTabs extends AppCompatActivity {
                 updated_values.put(UnsyncedData.Notifications_Table.content_importance, content_value.getRating());
                 updated_values.put(UnsyncedData.Notifications_Table.timing, timing_value.getRating());
                 UnsyncedData helper = new UnsyncedData(context);
-                helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values);
+                helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
+
+                if (!AppManagement.predictionsEnabled(context)) {
+                    UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
+                    getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues());
+                }
 
                 remainingNotifications.remove(0);
 
@@ -621,7 +652,7 @@ public class MainTabs extends AppCompatActivity {
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
                 UnsyncedData helper = new UnsyncedData(c);
-                helper.updateEntry((int) (n.sqlite_row_id), updated_values);
+                helper.updateEntry((int) (n.sqlite_row_id), updated_values, false);
             }
         }
         remainingNotifications.removeAll(removed);
@@ -783,6 +814,31 @@ public class MainTabs extends AppCompatActivity {
         return rootView;
     }
 
+    CheckBox notifications_hidden;
+    CheckBox sound_control_allowed;
+    public View generateSettingsView(final Context context, final LayoutInflater inflater, final ViewGroup container) {
+        final View rootView = inflater.inflate(R.layout.settings, container, false);
+        notifications_hidden = (CheckBox) rootView.findViewById(R.id.settings_selfnotification);
+        notifications_hidden.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                AppManagement.setOwnNotificationsHidden(context, b);
+            }
+        });
+        sound_control_allowed = (CheckBox) rootView.findViewById(R.id.settings_volume);
+        sound_control_allowed.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                AppManagement.setSoundControlAllowed(context, b);
+            }
+        });
+
+        notifications_hidden.setChecked(AppManagement.getOwnNotificationsHidden(context));
+        sound_control_allowed.setChecked(AppManagement.getSoundControlAllowed(context));
+
+        return rootView;
+    }
+
     private PlaceholderFragment curFragment;
     /**
      * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
@@ -809,7 +865,7 @@ public class MainTabs extends AppCompatActivity {
         @Override
         public int getCount() {
             // Show 3 total pages.
-            return 3;
+            return 4;
         }
 
         @Override
@@ -821,6 +877,8 @@ public class MainTabs extends AppCompatActivity {
                     return "PREDICTIONS";
                 case 2:
                     return "HELP";
+                case 3:
+                    return "SETTINGS";
             }
             return null;
         }

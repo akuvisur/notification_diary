@@ -50,14 +50,14 @@ import com.aware.Network;
 import com.aware.Screen;
 import com.aware.plugin.google.fused_location.*;
 import com.aware.plugin.google.fused_location.Plugin;
+import com.aware.plugin.google.fused_location.Provider;
 import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
 import com.aware.plugin.notificationdiary.ContentAnalysis.Node;
 import com.aware.plugin.notificationdiary.NotificationContext.InteractionContext;
 import com.aware.plugin.notificationdiary.NotificationObject.AttributeWithType;
 import com.aware.plugin.notificationdiary.NotificationObject.DiaryNotification;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
-import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
-import com.aware.plugin.notificationdiary.Providers.WordBins;
+import com.aware.plugin.notificationdiary.Providers.*;
 import com.aware.providers.Applications_Provider;
 import com.aware.providers.Battery_Provider;
 
@@ -166,9 +166,31 @@ public class NotificationListener extends NotificationListenerService {
                         ContentValues updated_values = new ContentValues();
                         updated_values.put(UnsyncedData.Notifications_Table.seen_timestamp, n.seen_timestamp);
                         updated_values.put(UnsyncedData.Notifications_Table.seen, n.seen);
-                        helper.updateEntry((int) n.sqlite_row_id, updated_values);
+                        helper.updateEntry((int) n.sqlite_row_id, updated_values, true);
                         Log.d(TAG, "seen: "  + n.title + " / " + n.message);
                     }
+                }
+                if (AppManagement.predictionsEnabled(context)) {
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            UnsyncedData helper = new UnsyncedData(context);
+                            ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions();
+                            if (predictions.size() % 5 == 0 && predictions.size() > 9) {
+                                NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                                Intent launchIntent = new Intent(context, PredictionActivity.class);
+                                PendingIntent pi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), launchIntent, FLAG_CANCEL_CURRENT);
+                                Notification launch_notification = new Notification.Builder(context)
+                                        .setContentTitle(predictions.size() + " unverified predictions")
+                                        .setContentText("Click to launch Notification Diary")
+                                        .setSmallIcon(R.mipmap.ic_launcher)
+                                        .setContentIntent(pi)
+                                        .setAutoCancel(true)
+                                        .build();
+                                notificationManager.notify(NOTIFICATION_UNVERIFIED_PREDICTIONS, launch_notification);
+                            }
+                        }
+                    }, 5000);
                 }
             }
 
@@ -271,6 +293,14 @@ public class NotificationListener extends NotificationListenerService {
         Log.d(TAG, "onStartCommand");
         context = this;
 
+        Log.d(TAG, "finished onStart");
+
+        return START_STICKY;
+    }
+
+    @Override
+    public void onCreate() {
+
         String notificationListenerString = Settings.Secure.getString(this.getContentResolver(),"enabled_notification_listeners");
         //Check notifications access permission
         if (notificationListenerString == null || !notificationListenerString.contains(getPackageName()))
@@ -282,14 +312,6 @@ public class NotificationListener extends NotificationListenerService {
             //Your application has access to the notifications
             Log.d(TAG, "has access");
         }
-
-        Log.d(TAG, "finished onStart");
-
-        return START_STICKY;
-    }
-
-    @Override
-    public void onCreate() {
 
         ar = new SensorReceiver();
         IntentFilter sensorFilter = new IntentFilter();
@@ -314,7 +336,7 @@ public class NotificationListener extends NotificationListenerService {
         // initialize google activity recognition
         new ActivityApiClient(this);
 
-        //if (AppManagement.predictionsEnabled(this)) {
+        if (AppManagement.predictionsEnabled(this)) {
             Log.d(TAG, "silencing notifications");
             AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
             audio.setVibrateSetting(AudioManager.VIBRATE_TYPE_NOTIFICATION, AudioManager.VIBRATE_SETTING_OFF);
@@ -322,11 +344,10 @@ public class NotificationListener extends NotificationListenerService {
 
             Intent startAlarmManager = new Intent(this, NotificationAlarmManager.class);
             startService(startAlarmManager);
-        //}
+        }
 
 
     }
-
 
     @Override
     public void onDestroy() {
@@ -351,6 +372,7 @@ public class NotificationListener extends NotificationListenerService {
 
     @Override
     public void onListenerConnected() {
+        Log.d(TAG, "connected");
         connected = true;
     }
 
@@ -366,6 +388,9 @@ public class NotificationListener extends NotificationListenerService {
     J48 tree;
     public void onNotificationPosted(StatusBarNotification sbn) {
         super.onNotificationPosted(sbn);
+
+        Log.d(TAG, "notification posted");
+
         // always show by default
         int showNotification = -1;
         boolean replacement = false;
@@ -377,7 +402,7 @@ public class NotificationListener extends NotificationListenerService {
 
         // if a notification should not be shown, remove it and don't store it
         if (AppManagement.predictionsEnabled(context)) {
-            if (!shouldNotificationBeDisplayed(sbn)) {
+            if (!shouldNotificationBeDisplayed(context, sbn)) {
                 hideNotification(sbn);
                 showNotification = 0;
             }
@@ -394,7 +419,7 @@ public class NotificationListener extends NotificationListenerService {
                 ContentValues replace = new ContentValues();
                 replace.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_REPLACE);
                 UnsyncedData helper = new UnsyncedData(context);
-                helper.updateEntry((int) n.sqlite_row_id, replace);
+                helper.updateEntry((int) n.sqlite_row_id, replace, true);
                 replacedNotification = n;
                 replacement = true;
                 Log.d(TAG, "replacement");
@@ -415,7 +440,7 @@ public class NotificationListener extends NotificationListenerService {
         unsynced.notification_id = sbn.getId();
         unsynced.predicted_as_show = showNotification;
 
-        if (Build.VERSION.SDK_INT >= 21) unsynced.notification_category = n.category;
+        if (Build.VERSION.SDK_INT >= 21 && n.category != null) unsynced.notification_category = n.category;
         else unsynced.notification_category = UNKNOWN;
 
         if (!SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF)) {unsynced.seen = true; unsynced.seen_timestamp = AppManagement.getCurrentTime();}
@@ -442,7 +467,7 @@ public class NotificationListener extends NotificationListenerService {
 
         Log.d(TAG, "inserting" + c.toString());
         UnsyncedData helper = new UnsyncedData(context);
-        unsynced.sqlite_row_id = helper.insertRecord(c);
+        unsynced.sqlite_row_id = helper.insertRecord(context, c);
 
         arrivedNotifications.add(unsynced);
         Log.d(TAG, "posted: "  + unsynced.title + " / " + unsynced.message);
@@ -468,10 +493,17 @@ public class NotificationListener extends NotificationListenerService {
             }
             helper.close();
         }
-        if (AppManagement.predictionsEnabled(context) && !replacement && showNotification == 1 && sbn.getNotification().sound != null) sendNotificationCue(sbn);
+        if (AppManagement.predictionsEnabled(context) && !replacement && showNotification == 1) {
+            Log.d(TAG, "call send cue");
+            sendNotificationCue(sbn);
+        }
     }
 
-    private Boolean shouldNotificationBeDisplayed(StatusBarNotification sbn) {
+    private Boolean shouldNotificationBeDisplayed(Context c1, StatusBarNotification sbn) {
+        if ((!AppManagement.getOwnNotificationsHidden(c1)) && sbn.getPackageName().equals(getPackageName())) {
+            Log.d(TAG, "Not hiding notification due to origin being this app");
+            return true;
+        }
         // get classifier from file
         Instances data = null;
         try {
@@ -828,6 +860,7 @@ public class NotificationListener extends NotificationListenerService {
         matchingNotification.interaction_timestamp = AppManagement.getCurrentTime();
 
         updated_values = new InteractionContext(context).addToValues(updated_values);
+        updated_values.put(UnsyncedData.Notifications_Table.interaction_timestamp, AppManagement.getCurrentTime());
         updated_values.put(UnsyncedData.Notifications_Table.foreground_application_package, interactionForegroundApplications.get(sbn));
 
         // if automatically hidden
@@ -851,12 +884,12 @@ public class NotificationListener extends NotificationListenerService {
         }
 
         UnsyncedData helper = new UnsyncedData(context);
-        helper.updateEntry((int) matchingNotification.sqlite_row_id, updated_values);
+        helper.updateEntry((int) matchingNotification.sqlite_row_id, updated_values, true);
 
         interactionForegroundApplications.remove(sbn);
         // remove this from list
         arrivedNotifications.remove(matchingNotification);
-        Log.d(TAG, "removed: "  + matchingNotification.title + " / " + matchingNotification.message);
+
     }
 
     private class StatusBarNotificationCheckedRunnable implements Runnable {
@@ -881,6 +914,7 @@ public class NotificationListener extends NotificationListenerService {
                 apps_run.close();
             }
             checkNotificationInteraction(notif, runApps);
+
         }
     }
 

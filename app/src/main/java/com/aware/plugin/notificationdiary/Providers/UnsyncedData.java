@@ -1,22 +1,19 @@
 package com.aware.plugin.notificationdiary.Providers;
 
-import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
-import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.net.Uri;
-import android.os.Handler;
 import android.util.Log;
 
+import com.aware.Aware;
+import com.aware.Aware_Preferences;
+import com.aware.plugin.google.fused_location.Provider;
 import com.aware.plugin.notificationdiary.AppManagement;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
-import com.aware.utils.DatabaseHelper;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 import static com.aware.plugin.notificationdiary.ContentAnalysisService.EMPTY_VALUE;
 
@@ -26,7 +23,7 @@ import static com.aware.plugin.notificationdiary.ContentAnalysisService.EMPTY_VA
 public class UnsyncedData extends SQLiteOpenHelper {
     private static final String TAG = "UnsyncedData.class";
 
-    private static final int DATABASE_VERSION = 10;
+    private static final int DATABASE_VERSION = 11;
     private static final String DATABASE_NAME = "unsynced_notifications";
 
     public static final class Notifications_Table implements Provider.AWAREColumns {
@@ -70,6 +67,8 @@ public class UnsyncedData extends SQLiteOpenHelper {
     private static final String NOTIFICATIONS_CREATE_TABLE =
             "CREATE TABLE " + DATABASE_NAME + "  (" +
             Notifications_Table._ID + " integer primary key autoincrement," +
+            Notifications_Table.DEVICE_ID + " REAL, " +
+            Notifications_Table.TIMESTAMP + " REAL, " +
             Notifications_Table.notification_id + " TEXT, " +
             Notifications_Table.generate_timestamp + " real, " +
             Notifications_Table.interaction_timestamp + " real, " +
@@ -125,21 +124,63 @@ public class UnsyncedData extends SQLiteOpenHelper {
         if (database == null) {database = this.getWritableDatabase();}
     }
 
-    public long insertRecord(ContentValues values) {
+    public UnsyncedNotification get(long id, boolean closeAfter) {
+        init();
+        UnsyncedNotification result = new UnsyncedNotification();
+        Cursor cursor = database.query(DATABASE_NAME,
+                null,
+                Notifications_Table._ID + " =?",
+                new String[]{String.valueOf(id)}, null, null, null);
+        if (cursor.moveToFirst()) {
+            result.sqlite_row_id = id;
+            result.notification_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table.notification_id));
+            result.generate_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.generate_timestamp));
+            result.interaction_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.interaction_timestamp));
+            result.interaction_type = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
+            result.seen_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp));
+            result.application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package));
+            result.notification_category = cursor.getString(cursor.getColumnIndex(Notifications_Table.notification_category));
+            result.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
+            result.activity = cursor.getString(cursor.getColumnIndex(Notifications_Table.activity));
+            result.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));
+            result.screen_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode));
+            result.ringer_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode));
+            result.battery_level = cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level));
+            result.network_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability));
+            result.wifi_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability));
+            result.foreground_application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package));
+
+            result.synced = cursor.getInt(cursor.getColumnIndex(Notifications_Table.synced)) > 0;
+            result.seen = cursor.getInt(cursor.getColumnIndex(Notifications_Table.seen)) > 0;
+
+            result.labeled = cursor.getInt(cursor.getColumnIndex(Notifications_Table.location)) > 0;
+            result.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
+            result.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
+
+            result.predicted_as_show = cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
+            result.prediction_correct = cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
+        }
+        if (closeAfter) database.close();
+        return result;
+    }
+
+    public long insertRecord(Context c, ContentValues values) {
         init();
         values.put(Notifications_Table.labeled, 0);
+        values.put(Notifications_Table.TIMESTAMP, System.currentTimeMillis());
+        values.put(Notifications_Table.DEVICE_ID, Aware.getSetting(c, Aware_Preferences.DEVICE_ID));
         long id = database.insert(DATABASE_NAME, null, values);
         database.close();
         return id;
     }
 
-    public void updateEntry(int id, ContentValues updated_values) {
+    public void updateEntry(int id, ContentValues updated_values, boolean closeAfter) {
         init();
         Log.d(TAG, "updating..");
         database.update(DATABASE_NAME, updated_values, "_id=" + id, null);
         Log.d(TAG, "updated id " + id);
         Log.d(TAG, "values: " + updated_values.toString());
-        database.close();
+        if (closeAfter) database.close();
     }
 
     public ArrayList<UnsyncedNotification> getUnlabeledNotifications(boolean closeAfter) {
@@ -214,7 +255,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
                 u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
                 u.predicted_as_show = cursor.getString(cursor.getColumnIndex(Notifications_Table.predicted_as_show)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
-                u.prediction_corrent = cursor.getString(cursor.getColumnIndex(Notifications_Table.prediction_correct)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
+                u.prediction_correct = cursor.getString(cursor.getColumnIndex(Notifications_Table.prediction_correct)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
                 result.add(u);
             }
             cursor.close();
@@ -269,18 +310,29 @@ public class UnsyncedData extends SQLiteOpenHelper {
         Cursor cursor = database.query(DATABASE_NAME,
                 new String[]{Notifications_Table.title, Notifications_Table.message, Notifications_Table.application_package, Notifications_Table._ID, Notifications_Table.seen_timestamp, Notifications_Table.predicted_as_show},
                 Notifications_Table.predicted_as_show + " > -1 AND " + Notifications_Table.prediction_correct + " IS NULL",
-                null, null, null, null);
+                null, null, null, Notifications_Table.generate_timestamp + " DESC");
 
         if (cursor != null) {
+            rowiteration:
             while (cursor.moveToNext()) {
-                result.add(new Prediction(
+                Prediction p = new Prediction(
                         cursor.getString(cursor.getColumnIndex(Notifications_Table.message)),
                         cursor.getString(cursor.getColumnIndex(Notifications_Table.title)),
                         cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package)),
                         cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)),
                         cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp)),
                         cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show))
-                        ));
+                );
+                for (Prediction inserted : result) {
+                    if (p.equals(inserted)) {
+                        ContentValues c = new ContentValues();
+                        c.put(Notifications_Table.prediction_correct, -1);
+                        updateEntry(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)), c, false);
+                        continue rowiteration;
+                    }
+                }
+                // max size 40
+                if (result.size() <= 40) result.add(p);
             }
             cursor.close();
         }
@@ -295,13 +347,25 @@ public class UnsyncedData extends SQLiteOpenHelper {
         public int sqlite_id;
         public long timestamp;
         public int predicted_as_show;
-        public Prediction(String text, String title, String package_name, int sqlite_id, long timestamp, int predicted_as_show) {
+
+        Prediction(String text, String title, String package_name, int sqlite_id, long timestamp, int predicted_as_show) {
             this.text = text;
             this.title = title;
             this.package_name = package_name;
             this.sqlite_id = sqlite_id;
             this.timestamp = timestamp;
             this.predicted_as_show = predicted_as_show;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Prediction)) return false;
+            Prediction p = (Prediction) o;
+            return (
+                p.title != null && p.title.equals(this.title) &&
+                p.text != null && p.text.equals(this.text) &&
+                p.package_name != null && p.package_name.equals(this.package_name)
+            );
         }
     }
 

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="6dp"
+        android:layout_marginBottom="6dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Allow Notification Diary to manage your volume settings"
+                android:id="@+id/settings_volume_text"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@+id/settings_volume"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:textSize="16sp"/>
+
+            <CheckBox
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/settings_volume"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true" />
+
+        <TextView
+            android:text="After predictions are enabled, Notification Diary will turn your phone into silent ringer mode to prevent you from being distracted by constant notification sounds, and only send sound or vibrate cues when you receive an important notification or a call."
+            android:textSize="10sp"
+            android:layout_marginTop="4dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/settings_volume"
+            android:layout_alignParentStart="true"
+            android:layout_toEndOf="@+id/settings_volume_text"
+            android:id="@+id/textView15" />
+    </RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#555555"></LinearLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="6dp"
+        android:layout_marginBottom="6dp">
+
+        <CheckBox
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/settings_selfnotification"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Never hide notifications from this application"
+            android:id="@+id/settings_selfnotification_text"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textSize="16sp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/settings_selfnotification"/>
+
+        <TextView
+            android:text="Whether you wish the Notification Diary to also be allowed to hide its own reminder notifications."
+            android:textSize="10sp"
+            android:layout_marginTop="4dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/settings_selfnotification_text"
+            android:layout_alignParentStart="true"
+            android:layout_toEndOf="@+id/settings_selfnotification_text"
+            android:id="@+id/textView16" />
+    </RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="#555555"></LinearLayout>
+
+</LinearLayout>

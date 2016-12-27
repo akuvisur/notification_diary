@@ -32,15 +32,16 @@ public class Plugin extends Aware_Plugin {
         //To sync data to the server, you'll need to set this variables from your ContentProvider
         DATABASE_TABLES = Provider.DATABASE_TABLES;
         TABLES_FIELDS = Provider.TABLES_FIELDS;
-        CONTEXT_URIS = new Uri[]{ Provider.TableOne_Data.CONTENT_URI }; //this syncs dummy Notifications_Table to server
+        CONTEXT_URIS = new Uri[]{ Provider.Notifications_Data.CONTENT_URI, Provider.Predictions_Data.CONTENT_URI}; //this syncs dummy Notifications_Table to server
 
-                //Activate plugin -- do this ALWAYS as the last thing (this will restart your own plugin and apply the settings)
-        //Aware.startPlugin(this, "com.aware.plugin.notificationdiary");
+        //Activate plugin -- do this ALWAYS as the last thing (this will restart your own plugin and apply the settings)
+        Aware.startPlugin(this, "com.aware.plugin.notificationdiary");
     }
 
     //This function gets called every 5 minutes by AWARE to make sure this plugin is still running.
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        Aware.setSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY, true);
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -48,10 +49,10 @@ public class Plugin extends Aware_Plugin {
     public void onDestroy() {
         super.onDestroy();
 
-        Aware.setSetting(this, Settings.STATUS_PLUGIN_TEMPLATE, false);
+        Aware.setSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY, false);
 
         //Stop plugin
-        Aware.stopPlugin(this, "com.aware.plugin.template");
+        Aware.stopPlugin(this, "com.aware.plugin.notificationdiary");
 
         //Stop AWARE
         Aware.stopAWARE();

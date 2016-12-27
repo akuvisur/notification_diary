@@ -7,6 +7,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
+import com.aware.plugin.google.fused_location.*;
+import com.aware.plugin.google.fused_location.Provider;
 import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
 
 /**

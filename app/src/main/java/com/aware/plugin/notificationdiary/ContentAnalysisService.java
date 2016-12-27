@@ -224,13 +224,13 @@ public class ContentAnalysisService extends Service {
                 instance.setDataset(training_data);
 
                 // if we have user verification on our training data
-                if (n.prediction_corrent > 0) {
+                if (n.prediction_correct > 0) {
                     if (n.predicted_as_show == 1) {
-                        if (n.prediction_corrent == 1) instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
+                        if (n.prediction_correct == 1) instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
                         else instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
                     }
                     else {
-                        if (n.prediction_corrent == 1) instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
+                        if (n.prediction_correct == 1) instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(HIDE_NOTIFICATION));
                         else instance.setValue(attributes.get(0), training_data.attribute(0).indexOfValue(SHOW_NOTIFICATION));
                     }
                 }

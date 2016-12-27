@@ -1,5 +1,8 @@
 package com.aware.plugin.notificationdiary.NotificationObject;
 
+import android.content.ContentValues;
+
+import com.aware.plugin.notificationdiary.Providers.Provider;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 
 import java.util.ArrayList;
@@ -36,12 +39,12 @@ public class DiaryNotification {
     public String foreground_application_package;
 
     // user labeling
-    public Double timing_value;
-    public Double content_importance_value;
+    public Double timing_value = -1.0;
+    public Double content_importance_value = -1.0;
 
     // predictions
-    public Integer predicted_as_show;
-    public Integer prediction_corrent;
+    public Integer predicted_as_show = -1;
+    public Integer prediction_correct = -1;
 
     // context variables and types
     public static final String CONTEXT_VARIABLE_TYPE_STRING = "CONTEXT_VARIABLE_TYPE_STRING";
@@ -153,6 +156,44 @@ public class DiaryNotification {
             return -1.0;
         }
         return -1.0;
+    }
+
+    public ContentValues toSyncableContentValues() {
+        ContentValues result = new ContentValues();
+
+        if (notification_id != null) result.put(Provider.Notifications_Data.notification_id, notification_id);
+        result.put(Provider.Notifications_Data.labeled, labeled);
+
+        // shared data for all notifications
+        if (generate_timestamp != null) result.put(Provider.Notifications_Data.generate_timestamp, generate_timestamp);
+        if (interaction_timestamp != null) result.put(Provider.Notifications_Data.interaction_timestamp, interaction_timestamp);
+
+        if (interaction_type != null) result.put(Provider.Notifications_Data.interaction_type, interaction_type);
+        if (seen != null) result.put(Provider.Notifications_Data.seen, seen);
+        if (seen_timestamp != null) result.put(Provider.Notifications_Data.seen_timestamp, seen_timestamp);
+
+        // context (when interacting)
+        if (application_package != null) result.put(Provider.Notifications_Data.application_package, application_package);
+        if (notification_category != null) result.put(Provider.Notifications_Data.notification_category, notification_category);
+        if (location != null) result.put(Provider.Notifications_Data.location, location);
+        if (activity != null) result.put(Provider.Notifications_Data.activity, activity);
+        if (headphone_jack != null) result.put(Provider.Notifications_Data.headphone_jack, headphone_jack);
+        if (screen_mode != null) result.put(Provider.Notifications_Data.screen_mode, screen_mode);
+        if (ringer_mode != null) result.put(Provider.Notifications_Data.ringer_mode, ringer_mode);
+        if (battery_level != null) result.put(Provider.Notifications_Data.battery_level, battery_level);
+        if (network_availability != null) result.put(Provider.Notifications_Data.network_availability, network_availability);
+        if (wifi_availability != null) result.put(Provider.Notifications_Data.wifi_availability, wifi_availability);
+        if (foreground_application_package != null) result.put(Provider.Notifications_Data.foreground_application_package, foreground_application_package);
+
+        // user labeling
+        if (timing_value != null) result.put(Provider.Notifications_Data.timing, timing_value);
+        if (content_importance_value != null) result.put(Provider.Notifications_Data.content_importance, content_importance_value);
+
+        // predictions
+        if (predicted_as_show != null) result.put(Provider.Notifications_Data.predicted_as_show, predicted_as_show);
+        if (prediction_correct != null) result.put(Provider.Notifications_Data.prediction_correct, prediction_correct);
+
+        return result;
     }
 
 }

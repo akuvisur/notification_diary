@@ -23,82 +23,171 @@ import java.util.HashMap;
  * Created by denzil on 07/04/16.
  */
 public class Provider extends ContentProvider {
+    public static String TAG = "syncprovider";
 
-    //public static String AUTHORITY = "com.aware.plugin.notification.provider.xxx"; //change to package.provider.your_plugin_name
-    public static String AUTHORITY = ""; //change to package.provider.your_plugin_name
+    /**
+     * Authority of this content provider
+     */
+    public static String AUTHORITY = "com.aware.plugin.notificationdiary.provider.notificationdiary";
 
-    public static final int DATABASE_VERSION = 1; //increase this if you make changes to the database structure, i.e., rename columns, etc.
+    public static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY);
 
-    public static Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY);
-    public static final String DATABASE_NAME = "plugin_template.db"; //the database filename, use plugin_xxx for plugins.
+    public static final String DATABASE_NAME = "plugin_notificationdiary.db";
 
-    //Add here your database table names, as many as you need
-    public static final String DB_TBL_TEMPLATE = "table_one";
+    public static final String DB_TBL_NOTIFICATIONS = "notificationdiary_notifications";
+    public static final String DB_TBL_PREDICTIONS = "notificationdiary_predictions";
 
-    //For each table, add two indexes: DIR and ITEM. The index needs to always incrementWeight. Next one is 3, and so on.
-    private static final int TABLE_ONE_DIR = 1;
-    private static final int TABLE_ONE_ITEM = 2;
+    /**
+     * ContentProvider database version. Increment every time you modify the database structure
+     */
+    public static final int DATABASE_VERSION = 2;
 
-    //Put tables names in this array so AWARE knows what you have on the database
     public static final String[] DATABASE_TABLES = {
-            DB_TBL_TEMPLATE
+            DB_TBL_NOTIFICATIONS,
+            DB_TBL_PREDICTIONS
     };
 
-    //These are columns that we need to sync data, don't change this!
+
+    public static final class Notifications_Data implements AWAREColumns {
+
+        /**
+         * Your ContentProvider table content URI.<br/>
+         * The last segment needs to match your database table name
+         */
+        public static final Uri CONTENT_URI = Uri.withAppendedPath(Provider.CONTENT_URI, DB_TBL_NOTIFICATIONS);
+        public static final String CONTENT_TYPE = ContentResolver.CURSOR_DIR_BASE_TYPE + "vnd.android.cursor.dir/vnd.aware.plugin.notificationdiary";
+        public static final String CONTENT_ITEM_TYPE = ContentResolver.CURSOR_ITEM_BASE_TYPE +"vnd.android.cursor.item/vnd.aware.plugin.notificationdiary";
+
+        public static final String notification_id = "notification_id";
+        public static final String generate_timestamp = "generate_timestamp";
+        public static final String interaction_timestamp = "interaction_timestamp";
+        public static final String interaction_type = "interaction_type";
+        public static final String seen_timestamp = "seen_timestamp";
+        public static final String application_package = "application_package";
+        public static final String notification_category = "notification_category";
+
+        // context (when interacting)
+        public static final String location = "location";
+        public static final String activity = "activity";
+        public static final String headphone_jack = "headphone_jack";
+        public static final String screen_mode = "screen_mode";
+        public static final String ringer_mode = "ringer_mode";
+        public static final String battery_level = "battery_level";
+        public static final String network_availability = "network_availability";
+        public static final String wifi_availability = "wifi_availability";
+        public static final String foreground_application_package = "foreground_application_package";
+
+        // set to true once user skips or gives label
+        public static final String synced = "synced";
+        public static final String seen = "seen";
+
+        public static final String labeled = "labeled";
+        public static final String content_importance = "content_importance";
+        public static final String timing = "timing";
+
+        public static final String predicted_as_show = "predicted_as_show";
+        public static final String prediction_correct = "prediction_correct";
+    }
+
+    public static final class Predictions_Data implements AWAREColumns {
+        private Predictions_Data() {
+        }
+
+        public static final Uri CONTENT_URI = Uri.withAppendedPath(Provider.CONTENT_URI, DB_TBL_PREDICTIONS);
+        public static final String CONTENT_TYPE = ContentResolver.CURSOR_DIR_BASE_TYPE + "vnd.android.cursor.dir/vnd.aware.plugin.notificationdiary";
+        public static final String CONTENT_ITEM_TYPE = ContentResolver.CURSOR_ITEM_BASE_TYPE + "vnd.android.cursor.item/vnd.aware.plugin.notificationdiary";
+
+        public static final String classifier_id = "classifier_id";
+        public static final String generate_timestamp = "generate_timestamp";
+        public static final String num_instances = "num_instances";
+        public static final String accuracy = "accuracy";
+        public static final String roc_area = "roc_area";
+        public static final String show_false_positive = "show_false_positive";
+        public static final String hide_false_positive = "hide_false_positive";
+        public static final String kappa = "kappa";
+        public static final String num_clusters = "num_clusters";
+    }
+
+
+    /**
+     * Database table fields
+     */
+    public static final String TABLES_FIELDS_PREDICTIONS =
+            Predictions_Data._ID + " integer primary key autoincrement," +
+            Predictions_Data.TIMESTAMP + " real default 0," +
+            Predictions_Data.DEVICE_ID + " text default ''," +
+            Predictions_Data.classifier_id + " integer, " +
+            Predictions_Data.generate_timestamp + " real, " +
+            Predictions_Data.num_instances + " integer, " +
+            Predictions_Data.accuracy + " real, " +
+            Predictions_Data.roc_area + " real, " +
+            Predictions_Data.show_false_positive + " real, " +
+            Predictions_Data.hide_false_positive + " real, " +
+            Predictions_Data.kappa + " real, " +
+            Predictions_Data.num_clusters + " integer";
+
+    public static final String TABLES_FIELDS_NOTIFICATIONS =
+            Notifications_Data._ID + " integer primary key autoincrement," +
+            Notifications_Data.TIMESTAMP + " real default 0," +
+            Notifications_Data.DEVICE_ID + " text default ''," +
+            Notifications_Data.notification_id + " TEXT, " +
+            Notifications_Data.generate_timestamp + " real, " +
+            Notifications_Data.interaction_timestamp + " real, " +
+            Notifications_Data.interaction_type + " TEXT, " +
+            Notifications_Data.seen_timestamp + " real, " +
+            Notifications_Data.application_package + " TEXT, " +
+            Notifications_Data.notification_category + " TEXT, " +
+            Notifications_Data.location + " TEXT, " +
+            Notifications_Data.activity + " TEXT, " +
+            Notifications_Data.headphone_jack + " TEXT, " +
+            Notifications_Data.screen_mode + " TEXT, " +
+            Notifications_Data.ringer_mode + " TEXT, " +
+            Notifications_Data.battery_level + " integer, " +
+            Notifications_Data.network_availability + " TEXT, " +
+            Notifications_Data.wifi_availability + " TEXT, " +
+            Notifications_Data.foreground_application_package + " TEXT, " +
+            Notifications_Data.synced + " TEXT, " +
+
+            // no = no, 1 = yes
+            Notifications_Data.seen + " integer," +
+
+            // 0 = no, 1 = yes, -1 = skipped
+            Notifications_Data.labeled + " integer, " +
+            Notifications_Data.content_importance + " REAL, " +
+            Notifications_Data.timing + " REAL, " +
+
+            // prediction results
+            Notifications_Data.predicted_as_show + " integer, " +
+            Notifications_Data.prediction_correct + " integer";
+
+    public static final String[] TABLES_FIELDS = {
+            TABLES_FIELDS_NOTIFICATIONS,
+            TABLES_FIELDS_PREDICTIONS
+    };
+
     public interface AWAREColumns extends BaseColumns {
         String _ID = "_id";
         String TIMESTAMP = "timestamp";
         String DEVICE_ID = "device_id";
     }
 
-    /**
-     * Create one of these per database table
-     * In this example, we are adding example columns
-     */
-    public static final class TableOne_Data implements AWAREColumns {
-        public static final Uri CONTENT_URI = Uri.withAppendedPath(Provider.CONTENT_URI, DB_TBL_TEMPLATE);
-        public static final String CONTENT_TYPE = ContentResolver.CURSOR_DIR_BASE_TYPE + "/vnd.com.aware.plugin.notifiationdiary.provider.labeled_data"; //modify me
-        public static final String CONTENT_ITEM_TYPE = ContentResolver.CURSOR_ITEM_BASE_TYPE + "/vnd.com.aware.plugin.notificationdiary.provider.labeled_data"; //modify me
+    private static UriMatcher sUriMatcher = null;
+    private static DatabaseHelper databaseHelper = null;
+    private static SQLiteDatabase database = null;
 
-        //Note: integers and strings don't need a type prefix_
-        public static final String NAME = "name";
-        public static final String BIG_NUMBER = "double_big_number"; //a double_ prefix makes a MySQL DOUBLE column
-        public static final String PICTURE = "blob_picture"; //a blob_ prefix makes a MySQL BLOB column
-    }
+    //ContentProvider query indexes
+    private static final int NOTIFS_DIR = 1;
+    private static final int NOTIFS_ITEM = 2;
+    private static final int PREDICTIONS_DIR = 3;
+    private static final int PREDICTIONS_ITEM = 4;
 
-    //Define each database table fields
-    private static final String DB_TBL_TEMPLATE_FIELDS =
-            TableOne_Data._ID + " integer primary key autoincrement," +
-                    TableOne_Data.TIMESTAMP + " real default 0," +
-                    TableOne_Data.DEVICE_ID + " text default ''," +
-                    TableOne_Data.NAME + " text default ''," +
-                    TableOne_Data.BIG_NUMBER + " real default 0," +
-                    TableOne_Data.PICTURE + " blob default null";
+    private static HashMap<String, String> notifsHash, predictionsHash;
 
-    /**
-     * Share the fields with AWARE so we can replicate the table schema on the server
-     */
-    public static final String[] TABLES_FIELDS = {
-            DB_TBL_TEMPLATE_FIELDS
-    };
-
-    //Helper variables for ContentProvider - don't change me
-    private static UriMatcher sUriMatcher;
-    private static DatabaseHelper databaseHelper;
-    private static SQLiteDatabase database;
-
-    //For each table, create a hashmap needed for database queries
-    private static HashMap<String, String> tableOneHash;
-
-    /**
-     * Initialise database: create the database file, update if needed, etc. DO NOT CHANGE ME
-     * @return
-     */
     private boolean initializeDB() {
         if (databaseHelper == null) {
             databaseHelper = new DatabaseHelper(getContext(), DATABASE_NAME, null, DATABASE_VERSION, DATABASE_TABLES, TABLES_FIELDS);
         }
-        if (database == null || !database.isOpen()) {
+        if (databaseHelper != null && (database == null || !database.isOpen())) {
             database = databaseHelper.getWritableDatabase();
         }
         return (database != null && databaseHelper != null);
@@ -106,23 +195,56 @@ public class Provider extends ContentProvider {
 
     @Override
     public boolean onCreate() {
-        //This is a hack to allow providers to be reusable in any application/plugin by making the authority dynamic using the package name of the parent app
-        AUTHORITY = getContext().getPackageName() + ".provider.notificationdiary"; //make sure xxx matches the first string in this class
+
+        AUTHORITY = getContext().getPackageName() + ".provider.notificationdiary";
 
         sUriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
+        sUriMatcher.addURI(AUTHORITY, DATABASE_TABLES[0], NOTIFS_DIR);
+        sUriMatcher.addURI(AUTHORITY, DATABASE_TABLES[0] + "/#", NOTIFS_ITEM);
+        sUriMatcher.addURI(AUTHORITY, DATABASE_TABLES[1], PREDICTIONS_DIR);
+        sUriMatcher.addURI(AUTHORITY, DATABASE_TABLES[1] + "/#", PREDICTIONS_ITEM);
 
-        //For each table, add indexes DIR and ITEM
-        sUriMatcher.addURI(AUTHORITY, DATABASE_TABLES[0], TABLE_ONE_DIR);
-        sUriMatcher.addURI(AUTHORITY, DATABASE_TABLES[0] + "/#", TABLE_ONE_ITEM);
+        notifsHash = new HashMap<>();
+        notifsHash.put(Notifications_Data._ID, Notifications_Data._ID);
+        notifsHash.put(Notifications_Data.TIMESTAMP, Notifications_Data.TIMESTAMP);
+        notifsHash.put(Notifications_Data.DEVICE_ID, Notifications_Data.DEVICE_ID);
+        notifsHash.put(Notifications_Data.notification_id, Notifications_Data.notification_id);
+        notifsHash.put(Notifications_Data.generate_timestamp, Notifications_Data.generate_timestamp);
+        notifsHash.put(Notifications_Data.interaction_timestamp, Notifications_Data.interaction_timestamp);
+        notifsHash.put(Notifications_Data.interaction_type, Notifications_Data.interaction_type);
+        notifsHash.put(Notifications_Data.seen_timestamp, Notifications_Data.seen_timestamp);
+        notifsHash.put(Notifications_Data.application_package, Notifications_Data.application_package);
+        notifsHash.put(Notifications_Data.notification_category, Notifications_Data.notification_category);
+        notifsHash.put(Notifications_Data.location, Notifications_Data.location);
+        notifsHash.put(Notifications_Data.activity, Notifications_Data.activity);
+        notifsHash.put(Notifications_Data.headphone_jack, Notifications_Data.headphone_jack);
+        notifsHash.put(Notifications_Data.screen_mode, Notifications_Data.screen_mode);
+        notifsHash.put(Notifications_Data.ringer_mode, Notifications_Data.ringer_mode);
+        notifsHash.put(Notifications_Data.battery_level, Notifications_Data.battery_level);
+        notifsHash.put(Notifications_Data.network_availability, Notifications_Data.network_availability);
+        notifsHash.put(Notifications_Data.wifi_availability ,Notifications_Data.wifi_availability);
+        notifsHash.put(Notifications_Data.foreground_application_package, Notifications_Data.foreground_application_package);
+        notifsHash.put(Notifications_Data.synced, Notifications_Data.synced);
+        notifsHash.put(Notifications_Data.seen, Notifications_Data.seen);
+        notifsHash.put(Notifications_Data.labeled, Notifications_Data.labeled);
+        notifsHash.put(Notifications_Data.content_importance, Notifications_Data.content_importance);
+        notifsHash.put(Notifications_Data.timing, Notifications_Data.timing);
+        notifsHash.put(Notifications_Data.predicted_as_show, Notifications_Data.predicted_as_show);
+        notifsHash.put(Notifications_Data.prediction_correct, Notifications_Data.prediction_correct);
 
-        //Create each table hashmap so Android knows how to insert data to the database. Put ALL table fields.
-        tableOneHash = new HashMap<>();
-        tableOneHash.put(TableOne_Data._ID, TableOne_Data._ID);
-        tableOneHash.put(TableOne_Data.TIMESTAMP, TableOne_Data.TIMESTAMP);
-        tableOneHash.put(TableOne_Data.DEVICE_ID, TableOne_Data.DEVICE_ID);
-        tableOneHash.put(TableOne_Data.NAME, TableOne_Data.NAME);
-        tableOneHash.put(TableOne_Data.BIG_NUMBER, TableOne_Data.BIG_NUMBER);
-        tableOneHash.put(TableOne_Data.PICTURE, TableOne_Data.PICTURE);
+        predictionsHash = new HashMap<>();
+        predictionsHash.put(Predictions_Data._ID, Predictions_Data._ID);
+        predictionsHash.put(Predictions_Data.TIMESTAMP, Predictions_Data.TIMESTAMP);
+        predictionsHash.put(Predictions_Data.DEVICE_ID, Predictions_Data.DEVICE_ID);
+        predictionsHash.put(Predictions_Data.classifier_id, Predictions_Data.classifier_id);
+        predictionsHash.put(Predictions_Data.generate_timestamp, Predictions_Data.generate_timestamp);
+        predictionsHash.put(Predictions_Data.num_instances, Predictions_Data.num_instances);
+        predictionsHash.put(Predictions_Data.accuracy, Predictions_Data.accuracy);
+        predictionsHash.put(Predictions_Data.roc_area, Predictions_Data.roc_area);
+        predictionsHash.put(Predictions_Data.show_false_positive, Predictions_Data.show_false_positive);
+        predictionsHash.put(Predictions_Data.hide_false_positive, Predictions_Data.hide_false_positive);
+        predictionsHash.put(Predictions_Data.kappa, Predictions_Data.kappa);
+        predictionsHash.put(Predictions_Data.num_clusters, Predictions_Data.num_clusters);
 
         return true;
     }
@@ -137,18 +259,17 @@ public class Provider extends ContentProvider {
 
         SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
         switch (sUriMatcher.match(uri)) {
-
-            //Add all tables' DIR entries, with the right table index
-            case TABLE_ONE_DIR:
+            case NOTIFS_DIR:
                 qb.setTables(DATABASE_TABLES[0]);
-                qb.setProjectionMap(tableOneHash); //the hashmap of the table
+                qb.setProjectionMap(notifsHash);
                 break;
-
+            case PREDICTIONS_DIR:
+                qb.setTables(DATABASE_TABLES[1]);
+                qb.setProjectionMap(predictionsHash);
+                break;
             default:
                 throw new IllegalArgumentException("Unknown URI " + uri);
         }
-
-        //Don't change me
         try {
             Cursor c = qb.query(database, projection, selection, selectionArgs,
                     null, null, sortOrder);
@@ -165,13 +286,14 @@ public class Provider extends ContentProvider {
     @Override
     public String getType(Uri uri) {
         switch (sUriMatcher.match(uri)) {
-
-            //Add each table indexes DIR and ITEM
-            case TABLE_ONE_DIR:
-                return TableOne_Data.CONTENT_TYPE;
-            case TABLE_ONE_ITEM:
-                return TableOne_Data.CONTENT_ITEM_TYPE;
-
+            case NOTIFS_DIR:
+                return Notifications_Data.CONTENT_TYPE;
+            case NOTIFS_ITEM:
+                return Notifications_Data.CONTENT_ITEM_TYPE;
+            case PREDICTIONS_DIR:
+                return Predictions_Data.CONTENT_TYPE;
+            case PREDICTIONS_ITEM:
+                return Predictions_Data.CONTENT_ITEM_TYPE;
             default:
                 throw new IllegalArgumentException("Unknown URI " + uri);
         }
@@ -184,26 +306,31 @@ public class Provider extends ContentProvider {
             Log.w("", "Database unavailable...");
             return null;
         }
-
+        Log.d(TAG, "Inserting new values to syncable database: " + uri.toString());
         ContentValues values = (new_values != null) ? new ContentValues(new_values) : new ContentValues();
-        long _id;
-
+        long _id = 0;
         switch (sUriMatcher.match(uri)) {
-
-            //Add each table DIR case
-            case TABLE_ONE_DIR:
-                _id = database.insert(DATABASE_TABLES[0], TableOne_Data.DEVICE_ID, values);
+            case NOTIFS_DIR:
+                _id = database.insert(DATABASE_TABLES[0], Notifications_Data.DEVICE_ID, values);
                 if (_id > 0) {
-                    Uri dataUri = ContentUris.withAppendedId(TableOne_Data.CONTENT_URI, _id);
+                    Uri dataUri = ContentUris.withAppendedId(Notifications_Data.CONTENT_URI, _id);
                     getContext().getContentResolver().notifyChange(dataUri, null);
                     return dataUri;
                 }
                 throw new SQLException("Failed to insert row into " + uri);
-
+            case PREDICTIONS_DIR:
+                _id = database.insert(DATABASE_TABLES[1], Predictions_Data.DEVICE_ID, values);
+                if (_id > 0) {
+                    Uri dataUri = ContentUris.withAppendedId(Predictions_Data.CONTENT_URI, _id);
+                    getContext().getContentResolver().notifyChange(dataUri, null);
+                    return dataUri;
+                }
+                throw new SQLException("Failed to insert row into " + uri);
             default:
                 throw new IllegalArgumentException("Unknown URI " + uri);
         }
     }
+
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
@@ -214,12 +341,12 @@ public class Provider extends ContentProvider {
 
         int count;
         switch (sUriMatcher.match(uri)) {
-
-            //Add each table DIR case
-            case TABLE_ONE_DIR:
+            case NOTIFS_DIR:
                 count = database.delete(DATABASE_TABLES[0], selection, selectionArgs);
                 break;
-
+            case PREDICTIONS_DIR:
+                count = database.delete(DATABASE_TABLES[1], selection, selectionArgs);
+                break;
             default:
                 throw new IllegalArgumentException("Unknown URI " + uri);
         }
@@ -236,12 +363,12 @@ public class Provider extends ContentProvider {
 
         int count;
         switch (sUriMatcher.match(uri)) {
-
-            //Add each table DIR case
-            case TABLE_ONE_DIR:
+            case NOTIFS_DIR:
                 count = database.update(DATABASE_TABLES[0], values, selection, selectionArgs);
                 break;
-
+            case PREDICTIONS_DIR:
+                count = database.update(DATABASE_TABLES[1], values, selection, selectionArgs);
+                break;
             default:
                 database.close();
                 throw new IllegalArgumentException("Unknown URI " + uri);

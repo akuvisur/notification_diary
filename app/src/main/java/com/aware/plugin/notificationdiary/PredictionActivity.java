@@ -52,10 +52,11 @@ public class PredictionActivity extends AppCompatActivity {
                     ContentValues c = new ContentValues();
                     c.put(UnsyncedData.Notifications_Table.prediction_correct, 1);
                     UnsyncedData ud = new UnsyncedData(context);
-                    ud.updateEntry(p.sqlite_id, c);
+                    ud.updateEntry(p.sqlite_id, c, false);
                     ud.close();
                 }
                 ((PredictionListAdapter) prediction_list.getAdapter()).notifyDataSetChanged();
+                prediction_list.invalidate();
                 updateNumPredictions();
             }
         });
@@ -122,7 +123,7 @@ public class PredictionActivity extends AppCompatActivity {
                     ContentValues c = new ContentValues();
                     c.put(UnsyncedData.Notifications_Table.prediction_correct, 1);
                     UnsyncedData ud = new UnsyncedData(context);
-                    ud.updateEntry(items.get(i).sqlite_id, c);
+                    ud.updateEntry(items.get(i).sqlite_id, c, false);
                     items.remove(i);
                     item_view.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
                     new Handler().postDelayed(new Runnable() {
@@ -141,7 +142,7 @@ public class PredictionActivity extends AppCompatActivity {
                     ContentValues c = new ContentValues();
                     c.put(UnsyncedData.Notifications_Table.prediction_correct, 0);
                     UnsyncedData ud = new UnsyncedData(context);
-                    ud.updateEntry(items.get(i).sqlite_id, c);
+                    ud.updateEntry(items.get(i).sqlite_id, c, false);
                     items.remove(i);
                     item_view.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                     new Handler().postDelayed(new Runnable() {

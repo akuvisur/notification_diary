@@ -100,6 +100,11 @@ public class MainTabs extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_tabs);
 
+        if (AppManagement.isFirstLaunch(this)) {
+            Intent tutorial = new Intent(this, TutorialActivity.class);
+            startActivity(tutorial);
+        }
+
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         // Create the adapter that will return a fragment for each of the three
@@ -152,6 +157,7 @@ public class MainTabs extends AppCompatActivity {
             if (getIntent().getStringExtra(START_WITH_TAB).equals(PREDICTION_TAB))  mViewPager.setCurrentItem(1);
         }
 
+        AppManagement.setFirstLaunch(this);
 
     }
 

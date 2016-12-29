@@ -33,6 +33,7 @@ public class AppManagement {
     public static final String PREDICTIONS_ENABLED = "PREDICTIONS_ENABLED";
     public static final String RINGER_MODE = "RINGER_MODE";
     public static final String SOUND_VOLUME = "SOUND_VOLUME";
+    public static final String FIRST_LAUNCH = "FIRST_LAUNCH";
 
     public static final String SYNC_TIME = "SYNC_TIME";
     // 5 nollaa perään
@@ -212,6 +213,16 @@ public class AppManagement {
         return sp.getBoolean(SELF_NOTIFICATIONS_HIDDEN, true);
     }
 
-    // locations
+    public static boolean isFirstLaunch(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        return sp.getBoolean(SELF_NOTIFICATIONS_HIDDEN, true);
+    }
+
+    public static void setFirstLaunch(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        spe = sp.edit();
+        spe.putBoolean(FIRST_LAUNCH, false);
+        spe.apply();
+    }
 
 }

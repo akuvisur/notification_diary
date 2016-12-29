@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Handler;
 import android.provider.Settings;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.support.v4.view.accessibility.AccessibilityManagerCompat;
@@ -14,6 +15,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
+import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -51,14 +53,26 @@ public class TutorialActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 page++;
-                refreshView(context);
+                content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshView(context);
+                    }
+                }, 500);
             }
         });
         previous.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 page--;
-                refreshView(context);
+                content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_right));
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshView(context);
+                    }
+                }, 500);
             }
         });
 
@@ -161,6 +175,7 @@ public class TutorialActivity extends AppCompatActivity {
                 finish();
         }
         parent.invalidate();
+        parent.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_in));
     }
 
     private boolean checkPermissions(Context c) {

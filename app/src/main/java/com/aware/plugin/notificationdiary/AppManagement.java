@@ -215,7 +215,7 @@ public class AppManagement {
 
     public static boolean isFirstLaunch(Context c) {
         sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getBoolean(SELF_NOTIFICATIONS_HIDDEN, true);
+        return sp.getBoolean(FIRST_LAUNCH, true);
     }
 
     public static void setFirstLaunch(Context c) {

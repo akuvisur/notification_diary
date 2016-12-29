@@ -113,7 +113,7 @@ public class NotificationListener extends NotificationListenerService {
     private class SensorReceiver extends BroadcastReceiver {
         private Context context = null;
         @Override
-        public void onReceive(Context c, Intent intent) {
+        public void onReceive(final Context c, Intent intent) {
             if (context == null) context = c;
             if (intent.getAction().equals(Applications.ACTION_AWARE_APPLICATIONS_FOREGROUND)) {
                 SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
@@ -166,7 +166,7 @@ public class NotificationListener extends NotificationListenerService {
                         ContentValues updated_values = new ContentValues();
                         updated_values.put(UnsyncedData.Notifications_Table.seen_timestamp, n.seen_timestamp);
                         updated_values.put(UnsyncedData.Notifications_Table.seen, n.seen);
-                        helper.updateEntry((int) n.sqlite_row_id, updated_values, true);
+                        helper.updateEntry(c, (int) n.sqlite_row_id, updated_values, true);
                         Log.d(TAG, "seen: "  + n.title + " / " + n.message);
                     }
                 }
@@ -175,7 +175,7 @@ public class NotificationListener extends NotificationListenerService {
                         @Override
                         public void run() {
                             UnsyncedData helper = new UnsyncedData(context);
-                            ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions();
+                            ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c);
                             if (predictions.size() % 5 == 0 && predictions.size() > 9) {
                                 NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
                                 Intent launchIntent = new Intent(context, PredictionActivity.class);
@@ -336,7 +336,7 @@ public class NotificationListener extends NotificationListenerService {
         // initialize google activity recognition
         new ActivityApiClient(this);
 
-        if (AppManagement.predictionsEnabled(this)) {
+        if (AppManagement.predictionsEnabled(this) && AppManagement.getSoundControlAllowed(this)) {
             Log.d(TAG, "silencing notifications");
             AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
             audio.setVibrateSetting(AudioManager.VIBRATE_TYPE_NOTIFICATION, AudioManager.VIBRATE_SETTING_OFF);
@@ -389,8 +389,6 @@ public class NotificationListener extends NotificationListenerService {
     public void onNotificationPosted(StatusBarNotification sbn) {
         super.onNotificationPosted(sbn);
 
-        Log.d(TAG, "notification posted");
-
         // always show by default
         int showNotification = -1;
         boolean replacement = false;
@@ -418,14 +416,16 @@ public class NotificationListener extends NotificationListenerService {
             if (n.application_package.equals(sbn.getPackageName())) {
                 ContentValues replace = new ContentValues();
                 replace.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_REPLACE);
+                // these are the "final" context values for this notification
+                replace = new InteractionContext(context).addToValues(replace);
                 UnsyncedData helper = new UnsyncedData(context);
-                helper.updateEntry((int) n.sqlite_row_id, replace, true);
+                helper.updateEntry(context, (int) n.sqlite_row_id, replace, true);
                 replacedNotification = n;
                 replacement = true;
                 Log.d(TAG, "replacement");
             }
         }
-        if (replacedNotification != null) arrivedNotifications.remove(replacedNotification);
+        if (replacedNotification != null) {arrivedNotifications.remove(replacedNotification);}
 
         Notification n = sbn.getNotification();
 
@@ -455,15 +455,8 @@ public class NotificationListener extends NotificationListenerService {
         c.put(UnsyncedData.Notifications_Table.seen, unsynced.seen);
         c.put(UnsyncedData.Notifications_Table.predicted_as_show, showNotification);
 
-        // context, foreground app when interacted with
-        c.put(UnsyncedData.Notifications_Table.activity, ACTIVITY);
-        c.put(UnsyncedData.Notifications_Table.battery_level, BATTERY_LEVEL);
-        c.put(UnsyncedData.Notifications_Table.location, LOCATION);
-        c.put(UnsyncedData.Notifications_Table.network_availability, NETWORK_AVAILABLE);
-        c.put(UnsyncedData.Notifications_Table.wifi_availability, WIFI_AVAILABLE);
-        c.put(UnsyncedData.Notifications_Table.screen_mode, SCREEN_STATE);
-        c.put(UnsyncedData.Notifications_Table.headphone_jack, HEADSET_STATUS);
-        c.put(UnsyncedData.Notifications_Table.ringer_mode, ((AudioManager) getSystemService(AUDIO_SERVICE)).getRingerMode());
+        // add "final" context values if a replaced notification
+        if (replacement) c = new InteractionContext(context).addToValues(c);
 
         Log.d(TAG, "inserting" + c.toString());
         UnsyncedData helper = new UnsyncedData(context);
@@ -500,7 +493,8 @@ public class NotificationListener extends NotificationListenerService {
     }
 
     private Boolean shouldNotificationBeDisplayed(Context c1, StatusBarNotification sbn) {
-        if ((!AppManagement.getOwnNotificationsHidden(c1)) && sbn.getPackageName().equals(getPackageName())) {
+        // the setting is "Never hide notifications from this app", so true means dont hide
+        if ((AppManagement.getOwnNotificationsHidden(c1)) && sbn.getPackageName().equals(getPackageName())) {
             Log.d(TAG, "Not hiding notification due to origin being this app");
             return true;
         }
@@ -740,7 +734,7 @@ public class NotificationListener extends NotificationListenerService {
 
         UnsyncedData helper = new UnsyncedData(context);
         ArrayList<UnsyncedNotification> notifications = helper.getUnlabeledNotifications(false);
-        ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions();
+        ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c1);
 
         if (predictions.size() % 5 == 0 && predictions.size() > 9) {
             NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -784,13 +778,7 @@ public class NotificationListener extends NotificationListenerService {
 
         try {
             double result = tree.classifyInstance(evaluated_notification.firstInstance());
-            if (result < 0.5) {
-                Log.d(TAG, "classified: " + ContentAnalysisService.HIDE_NOTIFICATION);
-            }
-            else {
-                Log.d(TAG, "classified: " + ContentAnalysisService.SHOW_NOTIFICATION);
-            }
-            if (result < 0.5) return false; else return true;
+            return (result > 0.5);
         }
         catch (Exception e) {
             Log.d(TAG, "could not classify");
@@ -877,6 +865,7 @@ public class NotificationListener extends NotificationListenerService {
             matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_CLICK;
             updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_CLICK);
         }
+
         else {
             // dismiss
             matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_DISMISS;
@@ -884,12 +873,16 @@ public class NotificationListener extends NotificationListenerService {
         }
 
         UnsyncedData helper = new UnsyncedData(context);
-        helper.updateEntry((int) matchingNotification.sqlite_row_id, updated_values, true);
+        helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values, true);
+
+        if (!AppManagement.predictionsEnabled(context) && !matchingNotification.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
+            UnsyncedData h = new UnsyncedData(context);
+            getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, h.get(matchingNotification.sqlite_row_id, true).toSyncableContentValues(context));
+        }
 
         interactionForegroundApplications.remove(sbn);
         // remove this from list
         arrivedNotifications.remove(matchingNotification);
-
     }
 
     private class StatusBarNotificationCheckedRunnable implements Runnable {

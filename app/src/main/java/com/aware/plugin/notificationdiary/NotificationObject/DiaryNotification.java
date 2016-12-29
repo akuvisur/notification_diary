@@ -1,7 +1,11 @@
 package com.aware.plugin.notificationdiary.NotificationObject;
 
 import android.content.ContentValues;
+import android.content.Context;
+import android.util.Log;
 
+import com.aware.Aware;
+import com.aware.Aware_Preferences;
 import com.aware.plugin.notificationdiary.Providers.Provider;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 
@@ -12,8 +16,13 @@ import java.util.Arrays;
  * Created by aku on 17/11/16.
  */
 public class DiaryNotification {
+    private final String TAG = "DiaryNotification";
+
     public static final String SEEN_DELAY_SECONDS = "seen_delay_seconds";
     public static final String INTERACTION_DELAY_SECONDS = "interaction_delay_seconds";
+
+    public String DEVICE_ID;
+    public Long timestamp;
 
     public Integer notification_id;
     public boolean labeled = false;
@@ -158,8 +167,12 @@ public class DiaryNotification {
         return -1.0;
     }
 
-    public ContentValues toSyncableContentValues() {
+    public ContentValues toSyncableContentValues(Context c) {
         ContentValues result = new ContentValues();
+
+        // required for syncing
+        result.put(Provider.Notifications_Data.TIMESTAMP, generate_timestamp*1000);
+        result.put(Provider.Notifications_Data.DEVICE_ID, Aware.getSetting(c, Aware_Preferences.DEVICE_ID));
 
         if (notification_id != null) result.put(Provider.Notifications_Data.notification_id, notification_id);
         result.put(Provider.Notifications_Data.labeled, labeled);
@@ -188,6 +201,8 @@ public class DiaryNotification {
         // user labeling
         if (timing_value != null) result.put(Provider.Notifications_Data.timing, timing_value);
         if (content_importance_value != null) result.put(Provider.Notifications_Data.content_importance, content_importance_value);
+
+        Log.d(TAG, "predicted as show:" + predicted_as_show + " and correct: " + prediction_correct);
 
         // predictions
         if (predicted_as_show != null) result.put(Provider.Notifications_Data.predicted_as_show, predicted_as_show);

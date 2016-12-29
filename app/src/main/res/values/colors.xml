@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimaryLight">#cdddc9</color>
-    <color name="colorPrimary">#7a8478</color>
-    <color name="colorPrimaryDark">#464c45</color>
-    <color name="colorAccent">#99f887</color>
-    <color name="colorSelected">#666666</color>
+    <color name="colorPrimaryLight">#9DD9ED</color>
+    <color name="colorPrimary">#4AACED</color>
+    <color name="colorPrimaryDark">#2B84C3</color>
+    <color name="colorAccent">#FED852</color>
+    <color name="colorSelected">#696969</color>
     <color name="colorUnselected">#ABABAB</color>
     <color name="ok">#ebfee7</color>
     <color name="cancel">#fefee7</color>
     <color name="extra_input">#e7fefe</color>
 
+    <color name="accent_green">#bff887</color>
     <color name="accent_yellow">#f8f887</color>
     <color name="accent_red">#f88787</color>
 

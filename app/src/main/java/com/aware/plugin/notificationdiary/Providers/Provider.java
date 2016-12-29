@@ -38,7 +38,7 @@ public class Provider extends ContentProvider {
     /**
      * ContentProvider database version. Increment every time you modify the database structure
      */
-    public static final int DATABASE_VERSION = 2;
+    public static final int DATABASE_VERSION = 5;
 
     public static final String[] DATABASE_TABLES = {
             DB_TBL_NOTIFICATIONS,
@@ -114,48 +114,45 @@ public class Provider extends ContentProvider {
             Predictions_Data._ID + " integer primary key autoincrement," +
             Predictions_Data.TIMESTAMP + " real default 0," +
             Predictions_Data.DEVICE_ID + " text default ''," +
-            Predictions_Data.classifier_id + " integer, " +
-            Predictions_Data.generate_timestamp + " real, " +
-            Predictions_Data.num_instances + " integer, " +
-            Predictions_Data.accuracy + " real, " +
-            Predictions_Data.roc_area + " real, " +
-            Predictions_Data.show_false_positive + " real, " +
-            Predictions_Data.hide_false_positive + " real, " +
-            Predictions_Data.kappa + " real, " +
+            Predictions_Data.classifier_id + " integer," +
+            Predictions_Data.generate_timestamp + " real," +
+            Predictions_Data.num_instances + " integer," +
+            Predictions_Data.accuracy + " real," +
+            Predictions_Data.roc_area + " real," +
+            Predictions_Data.show_false_positive + " real," +
+            Predictions_Data.hide_false_positive + " real," +
+            Predictions_Data.kappa + " real," +
             Predictions_Data.num_clusters + " integer";
 
     public static final String TABLES_FIELDS_NOTIFICATIONS =
             Notifications_Data._ID + " integer primary key autoincrement," +
             Notifications_Data.TIMESTAMP + " real default 0," +
             Notifications_Data.DEVICE_ID + " text default ''," +
-            Notifications_Data.notification_id + " TEXT, " +
-            Notifications_Data.generate_timestamp + " real, " +
-            Notifications_Data.interaction_timestamp + " real, " +
-            Notifications_Data.interaction_type + " TEXT, " +
-            Notifications_Data.seen_timestamp + " real, " +
-            Notifications_Data.application_package + " TEXT, " +
-            Notifications_Data.notification_category + " TEXT, " +
-            Notifications_Data.location + " TEXT, " +
-            Notifications_Data.activity + " TEXT, " +
-            Notifications_Data.headphone_jack + " TEXT, " +
-            Notifications_Data.screen_mode + " TEXT, " +
-            Notifications_Data.ringer_mode + " TEXT, " +
-            Notifications_Data.battery_level + " integer, " +
-            Notifications_Data.network_availability + " TEXT, " +
-            Notifications_Data.wifi_availability + " TEXT, " +
-            Notifications_Data.foreground_application_package + " TEXT, " +
-            Notifications_Data.synced + " TEXT, " +
-
+            Notifications_Data.notification_id + " TEXT," +
+            Notifications_Data.generate_timestamp + " real," +
+            Notifications_Data.interaction_timestamp + " real," +
+            Notifications_Data.interaction_type + " TEXT," +
+            Notifications_Data.seen_timestamp + " real," +
+            Notifications_Data.application_package + " TEXT," +
+            Notifications_Data.notification_category + " TEXT," +
+            Notifications_Data.location + " TEXT," +
+            Notifications_Data.activity + " TEXT," +
+            Notifications_Data.headphone_jack + " TEXT," +
+            Notifications_Data.screen_mode + " TEXT," +
+            Notifications_Data.ringer_mode + " TEXT," +
+            Notifications_Data.battery_level + " integer," +
+            Notifications_Data.network_availability + " TEXT," +
+            Notifications_Data.wifi_availability + " TEXT," +
+            Notifications_Data.foreground_application_package + " TEXT," +
+            Notifications_Data.synced + " TEXT," +
             // no = no, 1 = yes
             Notifications_Data.seen + " integer," +
-
             // 0 = no, 1 = yes, -1 = skipped
-            Notifications_Data.labeled + " integer, " +
-            Notifications_Data.content_importance + " REAL, " +
-            Notifications_Data.timing + " REAL, " +
-
+            Notifications_Data.labeled + " integer," +
+            Notifications_Data.content_importance + " REAL," +
+            Notifications_Data.timing + " REAL," +
             // prediction results
-            Notifications_Data.predicted_as_show + " integer, " +
+            Notifications_Data.predicted_as_show + " integer," +
             Notifications_Data.prediction_correct + " integer";
 
     public static final String[] TABLES_FIELDS = {
@@ -328,7 +325,6 @@ public class Provider extends ContentProvider {
                 throw new IllegalArgumentException("Unknown URI " + uri);
         }
     }
-
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {

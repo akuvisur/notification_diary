@@ -8,6 +8,8 @@ import android.os.AsyncTask;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.aware.Aware;
+import com.aware.Aware_Preferences;
 import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
 import com.aware.plugin.notificationdiary.ContentAnalysis.ClusterGenerator;
 import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
@@ -17,6 +19,7 @@ import com.aware.plugin.notificationdiary.NotificationObject.AttributeWithType;
 import com.aware.plugin.notificationdiary.NotificationObject.DiaryNotification;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
 import com.aware.plugin.notificationdiary.Providers.J48Classifiers;
+import com.aware.plugin.notificationdiary.Providers.Provider;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 import com.aware.plugin.notificationdiary.Providers.WordBins;
 
@@ -426,7 +429,23 @@ public class ContentAnalysisService extends Service {
                 values.put(J48Classifiers.Classifiers_Table.kappa, evaluationResult.kappa);
                 values.put(J48Classifiers.Classifiers_Table.num_instances, data.size());
 
-                tree_db.insertRecord(values);
+                long classifier_id = tree_db.insertRecord(values);
+
+                // sync to server
+                values = new ContentValues();
+                values.put(Provider.Predictions_Data.TIMESTAMP, System.currentTimeMillis());
+                values.put(Provider.Predictions_Data.DEVICE_ID, Aware.getSetting(context, Aware_Preferences.DEVICE_ID));
+                values.put(Provider.Predictions_Data.classifier_id, classifier_id);
+                values.put(Provider.Predictions_Data.generate_timestamp, System.currentTimeMillis());
+                values.put(Provider.Predictions_Data.num_clusters, OPTIMAL_NUM_CLUSTERS);
+                values.put(Provider.Predictions_Data.num_instances, data.size());
+                values.put(Provider.Predictions_Data.accuracy, evaluationResult.accuracy);
+                values.put(Provider.Predictions_Data.roc_area, evaluationResult.roc_area);
+                values.put(Provider.Predictions_Data.show_false_positive, evaluationResult.show_false_positive);
+                values.put(Provider.Predictions_Data.hide_false_positive, evaluationResult.hide_false_positive);
+                values.put(Provider.Predictions_Data.kappa, evaluationResult.kappa);
+
+                getContentResolver().insert(Provider.Predictions_Data.CONTENT_URI, values);
 
                 AppManagement.storeNumClusters(OPTIMAL_NUM_CLUSTERS, context);
 

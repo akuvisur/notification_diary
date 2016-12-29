@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:gravity="center_horizontal"
+        android:text="After you have labeled requisite amount of notifications in the DIARY view, you can then ENABLE PREDICTIONS.\r\n
+   \r\n
+        The predictions mode will use your interactions (CLICK or DISMISS) and the importance/timing information on each notification, and use machine learning to predict if a notification should be shown or hidden.\r\n
+\r\n
+        After you enable predictions, a machine learning model is generated and you will see information (estimated accuracy etc.) about the model.\r\n
+\r\n
+        Enabling predictions will mute your ring tone and vibration, and Notification Diary will store your ringtone settings. Notification Diary will send a cue (sound or vibration) when you receive calls or new notifications.\r\n
+\r\n
+        You can disable the sound control in the SETTINGS view if you wish.\r\n
+\r\n
+        Click next to continue the tutorial or previous to return to previous page."
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView20" />
+</LinearLayout>

@@ -34,6 +34,10 @@ public class AppManagement {
     public static final String RINGER_MODE = "RINGER_MODE";
     public static final String SOUND_VOLUME = "SOUND_VOLUME";
 
+    public static final String SYNC_TIME = "SYNC_TIME";
+    // 5 nollaa perään
+    public static final long SYNC_DELAY = 18;
+
     public static final String SOUND_CONTROL_ALLOWED = "SOUND_CONTROL_ALLOWED";
     public static final String SELF_NOTIFICATIONS_HIDDEN = "SELF_NOTIFICATIONS_HIDDEN";
 
@@ -79,8 +83,9 @@ public class AppManagement {
         spe = sp.edit();
         spe.putBoolean(PREDICTIONS_ENABLED, enabled);
         spe.apply();
-        setOwnNotificationsHidden(c, false);
-        setSoundControlAllowed(c, true);
+
+        setOwnNotificationsHidden(c, true);
+        setSoundControlAllowed(c, enabled);
     }
 
     public static void storeNumClusters(int num_clusters, Context c) {
@@ -94,6 +99,18 @@ public class AppManagement {
     public static int getNumClusters(Context c) {
         sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
         return sp.getInt(NUM_CLUSTERS, 15);
+    }
+
+    public static void setSyncTimestamp(Context c, long timestamp) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        spe = sp.edit();
+        spe.putLong(SYNC_TIME, timestamp);
+        spe.apply();
+    }
+
+    public static long getSyncTimestamp(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        return sp.getLong(SYNC_TIME, System.currentTimeMillis());
     }
 
     public static long getCurrentTime() {
@@ -172,13 +189,14 @@ public class AppManagement {
         sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
         spe = sp.edit();
         spe.putBoolean(SOUND_CONTROL_ALLOWED, soundControlAllowed);
-        Log.d(TAG, "setSoundControlAllowed: " + getSoundControlAllowed(c));
         spe.apply();
+        Intent soundControl = new Intent(c, NotificationAlarmManager.class);
+        if (soundControlAllowed) c.startService(soundControl);
+        else c.stopService(soundControl);
     }
 
     public static boolean getSoundControlAllowed(Context c) {
         sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        Log.d(TAG, "getSoundControlAllowed: " + sp.getBoolean(SOUND_CONTROL_ALLOWED, true));
         return sp.getBoolean(SOUND_CONTROL_ALLOWED, true);
     }
 

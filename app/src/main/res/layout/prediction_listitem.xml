@@ -9,7 +9,7 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="14dp"
-        android:background="@color/colorAccent"
+        android:background="@color/accent_green"
         android:id="@+id/listview_header"
         android:orientation="horizontal">
         <TextView

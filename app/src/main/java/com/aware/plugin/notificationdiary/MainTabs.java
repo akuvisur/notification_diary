@@ -57,6 +57,7 @@ import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
 import com.aware.plugin.notificationdiary.Providers.J48Classifiers;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
+import com.aware.plugin.notificationdiary.Tutorial.TutorialActivity;
 import com.aware.ui.PermissionsHandler;
 
 import java.text.DecimalFormat;
@@ -144,6 +145,7 @@ public class MainTabs extends AppCompatActivity {
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_WIFI_STATE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_NETWORK_STATE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.VIBRATE);
+        REQUIRED_PERMISSIONS.add(Manifest.permission.READ_PHONE_STATE);
 
         // change page to prediction tab if needed
         if (getIntent() != null & getIntent().hasExtra(START_WITH_TAB)) {
@@ -191,11 +193,15 @@ public class MainTabs extends AppCompatActivity {
                     Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_GPS, true);
                     Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_NETWORK, true);
 
+                    Aware.setSetting(context, Aware_Preferences.WEBSERVICE_SILENT, true);
+                    Aware.setSetting(context, Aware_Preferences.STATUS_ESM, true);
+
                     Aware.startApplications(context);
                     Aware.startBattery(context);
                     Aware.startScreen(context);
                     Aware.startNetwork(context);
                     Aware.startLocations(context);
+                    Aware.startESM(context);
 
                     Aware.startPlugin(context, "com.aware.plugin.google.fused_location");
                     // "start" this "plugin" so AWARE understands its running and syncs the data
@@ -230,6 +236,15 @@ public class MainTabs extends AppCompatActivity {
             Aware.stopLocations(this);
             Aware.stopPlugin(this, "com.aware.plugin.google.fused_location");
             Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
+        }
+        if (diaryViewGenerated) {
+            switch (mViewPager.getCurrentItem()) {
+                case 0:
+                    refreshDiaryFragment(context);
+                    break;
+                default:
+                    refreshDiaryFragment(context);
+            }
         }
 
         Log.d(TAG, "plugin set to on " + Aware.getSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY));
@@ -366,6 +381,8 @@ public class MainTabs extends AppCompatActivity {
     private RelativeLayout button_container;
     private LinearLayout skipall_layout;
 
+    private boolean diaryViewGenerated = false;
+
     public View generateDiaryView(Context c, final LayoutInflater inflater, final ViewGroup container) {
         Log.d(TAG, "Generating new diary view");
 
@@ -499,12 +516,11 @@ public class MainTabs extends AppCompatActivity {
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
                 UnsyncedData helper = new UnsyncedData(context);
-                helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
+                helper.updateEntry(context, (int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
 
-                if (!AppManagement.predictionsEnabled(context)) {
-                    UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
-                    getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues());
-                }
+                // always sync skipped
+                UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
+                if (n.predicted_as_show > -1 && n.prediction_correct > -1 )getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
 
                 remainingNotifications.remove(0);
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
@@ -526,11 +542,19 @@ public class MainTabs extends AppCompatActivity {
                 updated_values.put(UnsyncedData.Notifications_Table.content_importance, content_value.getRating());
                 updated_values.put(UnsyncedData.Notifications_Table.timing, timing_value.getRating());
                 UnsyncedData helper = new UnsyncedData(context);
-                helper.updateEntry((int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
+                helper.updateEntry(context, (int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
 
+                // can sync if predictions not yet enabled
                 if (!AppManagement.predictionsEnabled(context)) {
                     UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
-                    getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues());
+                    getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
+                }
+                // if predictions are enabled, only sync if user has verified that prediction was correct/incorrect
+                else {
+                    UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
+                    if (n.prediction_correct > -1) {
+                        getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
+                    }
                 }
 
                 remainingNotifications.remove(0);
@@ -595,11 +619,14 @@ public class MainTabs extends AppCompatActivity {
             button_container.addView(b);
         }
 
+        diaryViewGenerated = true;
         return rootView;
     }
 
     private void refreshDiaryFragment(Context c) {
         updateRemainingNotifications(c);
+
+        new UnsyncedData(c).syncAlltoProvider(c);
 
         if (remainingNotifications.size() == 0) {
             Log.d(TAG, "no more stuff");
@@ -635,8 +662,10 @@ public class MainTabs extends AppCompatActivity {
 
     static List<UnsyncedNotification> remainingNotifications = new ArrayList<>();
     private void updateRemainingNotifications(Context c) {
-        remainingNotifications = fetchRemainingNotifications(c);
-        notifications_remaining.setText(remainingNotifications.size() +  " Notifications remaining.");
+        if (notifications_remaining != null) {
+            remainingNotifications = fetchRemainingNotifications(c);
+            notifications_remaining.setText(remainingNotifications.size() +  " Notifications remaining.");
+        }
     }
 
     private List<UnsyncedNotification> fetchRemainingNotifications(Context c) {
@@ -646,15 +675,18 @@ public class MainTabs extends AppCompatActivity {
 
     private void skipAll(String package_name, Context c) {
         ArrayList<UnsyncedNotification> removed = new ArrayList<>();
+        UnsyncedData helper = new UnsyncedData(c);
         for (UnsyncedNotification n : remainingNotifications) {
             if (n.application_package.equals(package_name)) {
                 removed.add(n);
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
-                UnsyncedData helper = new UnsyncedData(c);
-                helper.updateEntry((int) (n.sqlite_row_id), updated_values, false);
+                helper.updateEntry(c, (int) (n.sqlite_row_id), updated_values, false);
+                UnsyncedNotification syncupdate = helper.get(remainingNotifications.get(0).sqlite_row_id, false);
+                getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, syncupdate.toSyncableContentValues(context));
             }
         }
+        helper.close();
         remainingNotifications.removeAll(removed);
         refreshDiaryFragment(c);
     }
@@ -807,10 +839,19 @@ public class MainTabs extends AppCompatActivity {
 
     }
 
-    public View generateHelpView(Context context, final LayoutInflater inflater, final ViewGroup container) {
+    Button tutorial_button;
+    public View generateHelpView(final Context context, final LayoutInflater inflater, final ViewGroup container) {
 
         final View rootView = inflater.inflate(R.layout.help_view, container, false);
 
+        tutorial_button = (Button) rootView.findViewById(R.id.tutorial_button);
+        tutorial_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent startTutorial = new Intent(context, TutorialActivity.class);
+                startActivity(startTutorial);
+            }
+        });
         return rootView;
     }
 

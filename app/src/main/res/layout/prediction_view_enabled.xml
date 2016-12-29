@@ -41,7 +41,7 @@
                 android:orientation="vertical"
                 android:layout_width="60dp"
                 android:layout_height="160dp"
-                android:background="@color/colorAccent"
+                android:background="@color/accent_green"
                 android:id="@+id/accuracy_visualisation"
                 android:layout_alignParentEnd="true"
                 android:layout_alignParentBottom="true"></LinearLayout>
@@ -93,7 +93,7 @@
                 android:layout_width="20dp"
                 android:layout_height="match_parent"
                 android:layout_alignParentEnd="true"
-                android:background="@color/colorAccent"
+                android:background="@color/accent_green"
                 android:layout_alignParentTop="true"
                 android:id="@+id/important_right_edge"></LinearLayout>
         </RelativeLayout>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <Button
+        android:text="Permissions"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tutorial_permissions" />
+    <Button
+        android:text="Accessibility services"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tutorial_accessibility" />
+
+    <Button
+        android:text="Notification access"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tutorial_notification_access" />
+
+    <TextView
+        android:text="
+        The application requires access to different permissions on your smartphone for full functionality.\r\n
+\r\n
+        Click each button to set the permissions.\r\n
+\r\n
+        The button will be grey and unclickable once the permission is already granted.\r\n
+\r\n
+        Click next to continue the tutorial or previous to return to previous page.\r\n
+        "
+        android:gravity="center_horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView14" />
+</LinearLayout>

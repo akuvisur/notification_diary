@@ -13,6 +13,15 @@
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
+
+            <Button
+                android:text="View Tutorial"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/colorPrimaryLight"
+                android:id="@+id/tutorial_button"
+                android:layout_margin="6dp"/>
+
             <TextView
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
@@ -67,7 +76,8 @@
                 android:layout_height="wrap_content"
                 android:textAppearance="?android:attr/textAppearanceMedium"
                 android:text="@string/helpview_predictions"
-                android:id="@+id/textView11" />
+                android:id="@+id/textView11"
+                android:layout_marginBottom="60dp"/>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

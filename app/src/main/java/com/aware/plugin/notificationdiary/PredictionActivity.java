@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,6 +18,8 @@ import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
+import com.aware.plugin.notificationdiary.Providers.Provider;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 
 import java.util.ArrayList;
@@ -32,6 +35,7 @@ public class PredictionActivity extends AppCompatActivity {
     Button accept_all;
 
     private Context context;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,6 +44,9 @@ public class PredictionActivity extends AppCompatActivity {
         predictions = new ArrayList<>();
 
         setContentView(R.layout.activity_prediction);
+
+        setTitle("Predictions");
+
         prediction_list = (ListView) findViewById(R.id.predact_prediction_list);
         num_predictions = (TextView) findViewById(R.id.num_predictions);
 
@@ -48,26 +55,45 @@ public class PredictionActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Log.d(TAG, "clicked accept all");
+                ArrayList<Long> ids = new ArrayList();
+
                 for (UnsyncedData.Prediction p : predictions) {
                     ContentValues c = new ContentValues();
                     c.put(UnsyncedData.Notifications_Table.prediction_correct, 1);
+                    c.put(UnsyncedData.Notifications_Table.synced, "1");
+
                     UnsyncedData ud = new UnsyncedData(context);
-                    ud.updateEntry(p.sqlite_id, c, false);
+                    ud.updateEntry(context, (int) p.sqlite_id, c, false);
+                    ids.add(p.sqlite_id);
                     ud.close();
                 }
-                ((PredictionListAdapter) prediction_list.getAdapter()).notifyDataSetChanged();
+
+                for (Long id : ids) {
+                    UnsyncedData ud = new UnsyncedData(context);
+                    UnsyncedNotification n = ud.get(id, false);
+                    if (n.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS) && n.labeled)
+                        getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
+                    else if (!n.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS))
+                        getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
+                    ud.close();
+                }
+
+                predictions.clear();
                 prediction_list.invalidate();
+                adapter.notifyDataSetChanged();
                 updateNumPredictions();
             }
         });
     }
 
+    PredictionListAdapter adapter;
     @Override
     public void onResume() {
         super.onResume();
         UnsyncedData ud = new UnsyncedData(this);
-        predictions = ud.getPredictions();
-        prediction_list.setAdapter(new PredictionListAdapter(this, R.layout.prediction_listitem, predictions, prediction_list));
+        predictions = ud.getPredictions(context);
+        adapter = new PredictionListAdapter(this, R.layout.prediction_listitem, predictions, prediction_list);
+        prediction_list.setAdapter(adapter);
         ud.close();
 
         updateNumPredictions();
@@ -123,12 +149,22 @@ public class PredictionActivity extends AppCompatActivity {
                     ContentValues c = new ContentValues();
                     c.put(UnsyncedData.Notifications_Table.prediction_correct, 1);
                     UnsyncedData ud = new UnsyncedData(context);
-                    ud.updateEntry(items.get(i).sqlite_id, c, false);
-                    items.remove(i);
+                    ud.updateEntry(context, (int) items.get(i).sqlite_id, c, true);
+
                     item_view.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
+                            UnsyncedData ud = new UnsyncedData(context);
+                            if (items.get(i).interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS) && items.get(i).labeled > 0)
+                                getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, ud.get(items.get(i).sqlite_id, false).toSyncableContentValues(context));
+                            else if (!items.get(i).interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS))
+                                getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, ud.get(items.get(i).sqlite_id, false).toSyncableContentValues(context));
+                            ContentValues synced = new ContentValues();
+                            synced.put(UnsyncedData.Notifications_Table.synced, "1");
+                            ud.updateEntry(context, (int) items.get(i).sqlite_id, synced, false);
+
+                            items.remove(i);
                             notifyDataSetChanged();
                             updateNumPredictions();
                         }
@@ -142,12 +178,23 @@ public class PredictionActivity extends AppCompatActivity {
                     ContentValues c = new ContentValues();
                     c.put(UnsyncedData.Notifications_Table.prediction_correct, 0);
                     UnsyncedData ud = new UnsyncedData(context);
-                    ud.updateEntry(items.get(i).sqlite_id, c, false);
-                    items.remove(i);
+                    ud.updateEntry(context, (int) items.get(i).sqlite_id, c, true);
+
                     item_view.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
+                            UnsyncedData ud = new UnsyncedData(context);
+                            if (items.get(i).interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS) && items.get(i).labeled > 0)
+                                getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, ud.get(items.get(i).sqlite_id, false).toSyncableContentValues(context));
+                            else if (!items.get(i).interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS))
+                                getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, ud.get(items.get(i).sqlite_id, false).toSyncableContentValues(context));
+
+                            ContentValues synced = new ContentValues();
+                            synced.put(UnsyncedData.Notifications_Table.synced, "1");
+                            ud.updateEntry(context, (int) items.get(i).sqlite_id, synced, false);
+
+                            items.remove(i);
                             notifyDataSetChanged();
                             updateNumPredictions();
                         }
@@ -155,7 +202,7 @@ public class PredictionActivity extends AppCompatActivity {
                 }
             });
 
-            if (items.get(i).predicted_as_show < 1) {
+            if (items.get(i).predicted_as_show == 0) {
                 header.setBackgroundColor(ContextCompat.getColor(context, R.color.accent_yellow));
                 header_text.setText("HIDDEN NOTIFICATION");
             }

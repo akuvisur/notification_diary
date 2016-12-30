@@ -25,7 +25,7 @@ public class DiaryNotification {
     public Long timestamp;
 
     public Integer notification_id;
-    public boolean labeled = false;
+    public Boolean labeled = false;
 
     // shared data for all notifications
     public Long generate_timestamp;
@@ -179,7 +179,7 @@ public class DiaryNotification {
         ContentValues result = new ContentValues();
 
         // required for syncing
-        result.put(Provider.Notifications_Data.TIMESTAMP, generate_timestamp*1000);
+        result.put(Provider.Notifications_Data.TIMESTAMP, generate_timestamp);
         result.put(Provider.Notifications_Data.DEVICE_ID, Aware.getSetting(c, Aware_Preferences.DEVICE_ID));
 
         if (notification_id != null) result.put(Provider.Notifications_Data.notification_id, notification_id);
@@ -207,6 +207,7 @@ public class DiaryNotification {
         if (foreground_application_package != null) result.put(Provider.Notifications_Data.foreground_application_package, foreground_application_package);
 
         // user labeling
+        if (labeled) result.put(Provider.Notifications_Data.labeled, 1); else result.put(Provider.Notifications_Data.labeled, 0);
         if (timing_value != null) result.put(Provider.Notifications_Data.timing, timing_value);
         if (content_importance_value != null) result.put(Provider.Notifications_Data.content_importance, content_importance_value);
         // predictions

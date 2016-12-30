@@ -38,7 +38,7 @@ public class Provider extends ContentProvider {
     /**
      * ContentProvider database version. Increment every time you modify the database structure
      */
-    public static final int DATABASE_VERSION = 5;
+    public static final int DATABASE_VERSION = 6;
 
     public static final String[] DATABASE_TABLES = {
             DB_TBL_NOTIFICATIONS,
@@ -146,14 +146,14 @@ public class Provider extends ContentProvider {
             Notifications_Data.foreground_application_package + " TEXT," +
             Notifications_Data.synced + " TEXT," +
             // no = no, 1 = yes
-            Notifications_Data.seen + " integer," +
+            Notifications_Data.seen + " integer default 0," +
             // 0 = no, 1 = yes, -1 = skipped
-            Notifications_Data.labeled + " integer," +
+            Notifications_Data.labeled + " integer default 0," +
             Notifications_Data.content_importance + " REAL," +
             Notifications_Data.timing + " REAL," +
             // prediction results
-            Notifications_Data.predicted_as_show + " integer," +
-            Notifications_Data.prediction_correct + " integer";
+            Notifications_Data.predicted_as_show + " integer default -1," +
+            Notifications_Data.prediction_correct + " integer default -1";
 
     public static final String[] TABLES_FIELDS = {
             TABLES_FIELDS_NOTIFICATIONS,

@@ -121,8 +121,9 @@ public class AppManagement {
         return sp.getLong(SYNC_TIME, System.currentTimeMillis());
     }
 
-    static Calendar calendar = Calendar.getInstance();
+    static Calendar calendar = null;
     public static int getHour(long timestamp) {
+        if (calendar == null) calendar = Calendar.getInstance();
         calendar.setTimeZone(TimeZone.getDefault());
         calendar.setTimeInMillis(timestamp);
         return calendar.get(Calendar.HOUR_OF_DAY);
@@ -140,9 +141,10 @@ public class AppManagement {
     }
 
     public static String getDate(Context c, long time) {
-        Calendar cal = Calendar.getInstance(c.getResources().getConfiguration().locale);
-        cal.setTimeInMillis(time*1000);
-        String date = DateFormat.format("kk:mm MMM d", cal).toString();
+        if (calendar == null) calendar = Calendar.getInstance();
+        calendar.setTimeZone(TimeZone.getDefault());
+        calendar.setTimeInMillis(time);
+        String date = DateFormat.format("kk:mm MMM d", calendar).toString();
         return date;
     }
 

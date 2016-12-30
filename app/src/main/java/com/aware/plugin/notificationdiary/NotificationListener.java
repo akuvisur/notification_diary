@@ -343,10 +343,8 @@ public class NotificationListener extends NotificationListenerService {
 
             Intent startAlarmManager = new Intent(this, NotificationAlarmManager.class);
             startService(startAlarmManager);
-
-            AppManagement.startDailyModel(this);
         }
-
+        if (AppManagement.predictionsEnabled(this)) AppManagement.startDailyModel(this);
 
     }
 
@@ -431,13 +429,12 @@ public class NotificationListener extends NotificationListenerService {
 
         Notification n = sbn.getNotification();
 
-        getExtras(n);
-        loadTexts(this, n);
+        String[] contents = loadTexts(this, n);
 
         UnsyncedNotification unsynced = new UnsyncedNotification();
         unsynced.generate_timestamp = System.currentTimeMillis();
-        if (messageText != null) unsynced.message = String.valueOf(messageText); else messageText = "";
-        if (titleText != null) unsynced.title = String.valueOf(titleText); else titleText = "";
+        if (contents[1] != null) unsynced.message = contents[1]; else unsynced.message  = "";
+        if (contents[0] != null) unsynced.title = contents[0]; else unsynced.title = "";
         unsynced.application_package = sbn.getPackageName();
         unsynced.notification_id = sbn.getId();
         Log.d(TAG, "new posted, package: " + unsynced.application_package + " id: " + unsynced.notification_id);
@@ -495,9 +492,11 @@ public class NotificationListener extends NotificationListenerService {
         }
     }
 
-    ArrayList<String> stopWordsEng;
-    ArrayList<String> stopWordsFin;
+    ArrayList<String> stopWordsEng = null;
+    ArrayList<String> stopWordsFin = null;
     public ArrayList<String> strip(String title, String contents) {
+        if (stopWordsEng == null) stopWordsEng = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.english)));
+        if (stopWordsFin == null) stopWordsFin = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.finnish)));
         String a = title + " " + contents;
         a = a.toLowerCase().replaceAll("^[a-zA-Z0-9äöüÄÖÜ]", " ");
         ArrayList<String> words = new ArrayList<>(Arrays.asList(a.split(" ")));
@@ -516,78 +515,6 @@ public class NotificationListener extends NotificationListenerService {
         else Log.d(TAG, "Blacklisted app");
 
         interactionForegroundApplications.put(sbn, FOREGROUND_APP_PACKAGE);
-    }
-
-    private void checkNotificationInteraction(StatusBarNotification sbn, ArrayList<String> foreApps) {
-        int identifier = UnsyncedNotification.getHashIdentifier(sbn.getId(), sbn.getPackageName());
-
-        getExtras(sbn.getNotification());
-        loadTexts(this, sbn.getNotification());
-
-        UnsyncedNotification matchingNotification = null;
-        /*
-        &&
-                    (n.title != null) &&
-                    (n.title.equals(titleText))
-         */
-        for (UnsyncedNotification n : arrivedNotifications) {
-            if ((identifier == n.getHashIdentifier())) {
-                matchingNotification = n;
-                break;
-            }
-        }
-        // Did not find a matching notification
-        if (matchingNotification == null) {Log.d(TAG, "No match found");}
-        else {
-            Log.d(TAG, "Match found.");
-
-            ContentValues updated_values = new ContentValues();
-            matchingNotification.interaction_timestamp = System.currentTimeMillis();
-
-            updated_values = new InteractionContext(context).addToValues(updated_values);
-            updated_values.put(UnsyncedData.Notifications_Table.interaction_timestamp, System.currentTimeMillis());
-            updated_values.put(UnsyncedData.Notifications_Table.foreground_application_package, interactionForegroundApplications.get(sbn));
-
-            // if automatically hidden
-            if (matchingNotification.predicted_as_show == 0)
-                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_PREDICTION_HIDE;
-
-            else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF)) {
-                // system auto removed
-                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS;
-                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS);
-            } else if (foreApps.contains(matchingNotification.application_package) || matchingNotification.application_package.equals(FOREGROUND_APP_PACKAGE)) {
-                // click
-                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_CLICK;
-                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_CLICK);
-            } else {
-                // dismiss
-                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_DISMISS;
-                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_DISMISS);
-            }
-
-            UnsyncedData helper = new UnsyncedData(context);
-            helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values, true);
-
-            interactionForegroundApplications.remove(sbn);
-            // remove this from list
-            arrivedNotifications.remove(matchingNotification);
-
-            final UnsyncedNotification match = matchingNotification;
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!AppManagement.predictionsEnabled(context) && !match.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
-                        UnsyncedData h = new UnsyncedData(context);
-                        getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, h.get(match.sqlite_row_id, true).toSyncableContentValues(context));
-                    }
-                    UnsyncedData ud = new UnsyncedData(context);
-                    int count = (ud.countPredictions(context) + ud.countUnlabeledNotifications(true));
-                    if (count > 0) BadgeUtils.setBadge(context, count);
-                    else BadgeUtils.clearBadge(context);
-                }
-            }, 500);
-        }
     }
 
     private class StatusBarNotificationCheckedRunnable implements Runnable {
@@ -611,10 +538,75 @@ public class NotificationListener extends NotificationListenerService {
                 apps_run.close();
             }
             checkNotificationInteraction(notif, runApps);
-
         }
     }
 
+
+    private void checkNotificationInteraction(StatusBarNotification sbn, ArrayList<String> foreApps) {
+        int identifier = UnsyncedNotification.getHashIdentifier(sbn.getId(), sbn.getPackageName());
+
+        String[] removed_notification_contents = loadTexts(this, sbn.getNotification());
+        Log.d(TAG, "contents: " + removed_notification_contents[0] + " " + removed_notification_contents[1]);
+        UnsyncedNotification matchingNotification = null;
+        for (UnsyncedNotification n : arrivedNotifications) {
+            if ((identifier == n.getHashIdentifier()) &&
+                    (n.title.equals(removed_notification_contents[0]))) {
+                matchingNotification = n;
+                break;
+            }
+        }
+        // Did not find a matching notification
+        if (matchingNotification == null) {Log.d(TAG, "No match found");}
+        else {
+            Log.d(TAG, "Match found.");
+
+            ContentValues updated_values = new ContentValues();
+            matchingNotification.interaction_timestamp = System.currentTimeMillis();
+
+            updated_values = new InteractionContext(context).addToValues(updated_values);
+            updated_values.put(UnsyncedData.Notifications_Table.interaction_timestamp, System.currentTimeMillis());
+            updated_values.put(UnsyncedData.Notifications_Table.foreground_application_package, interactionForegroundApplications.get(sbn));
+
+            // if automatically hidden
+            if (matchingNotification.predicted_as_show == 0)
+                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_PREDICTION_HIDE;
+
+            else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF) || !matchingNotification.seen) {
+                // system auto removed if screen on or notification was never seen
+                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS;
+                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS);
+            } else if (foreApps.contains(matchingNotification.application_package) || matchingNotification.application_package.equals(FOREGROUND_APP_PACKAGE)) {
+                // click
+                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_CLICK;
+                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_CLICK);
+            } else {
+                // dismiss
+                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_DISMISS;
+                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_DISMISS);
+            }
+
+            UnsyncedData helper = new UnsyncedData(context);
+            helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values, true);
+
+            interactionForegroundApplications.remove(sbn);
+            // remove this from list
+            arrivedNotifications.remove(matchingNotification);
+
+            final UnsyncedNotification match = matchingNotification;
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    UnsyncedData h = new UnsyncedData(context);
+                    if (!AppManagement.predictionsEnabled(context) && !match.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
+                        getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, h.get(match.sqlite_row_id, true).toSyncableContentValues(context));
+                    }
+                    int count = (h.countPredictions(context) + h.countUnlabeledNotifications(true));
+                    if (count > 0) BadgeUtils.setBadge(context, count);
+                    else BadgeUtils.clearBadge(context);
+                }
+            }, 500);
+        }
+    }
 
     private Boolean shouldNotificationBeDisplayed(Context c1, StatusBarNotification sbn) {
         // the setting is "Never hide notifications from this app", so true means dont hide
@@ -646,16 +638,14 @@ public class NotificationListener extends NotificationListenerService {
         ArrayList<Integer> ids = wordBins.extractClusterIds(false);
 
         ArrayList<Cluster> clusters = wordBins.extractAllClusters(context, false);
-        stopWordsEng = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.english)));
-        stopWordsFin = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.finnish)));
 
         Notification n = sbn.getNotification();
-        getExtras(n);
-        loadTexts(this, n);
 
-        if (titleText == null) titleText = "";
-        if (messageText == null) messageText = "";
-        ArrayList<String> words = strip(titleText.toString(), messageText.toString());
+        String[] current_notification_contents = loadTexts(this, n);
+
+        if (current_notification_contents[0] == null) current_notification_contents[0] = "";
+        if (current_notification_contents[1] == null) current_notification_contents[1] = "";
+        ArrayList<String> words = strip(current_notification_contents[0], current_notification_contents[1]);
 
         // set attributes to evaluation instance from training_data
         ArrayList<Attribute> attributes = new ArrayList<>();
@@ -926,7 +916,6 @@ public class NotificationListener extends NotificationListenerService {
         Log.d(TAG, "send broadcast for CUE");
     }
 
-
     /*
     Following code originally by author of AcDisplay
 
@@ -956,15 +945,16 @@ public class NotificationListener extends NotificationListenerService {
     CharSequence summaryText;
     CharSequence[] messageTextLines;
 
-    public void loadTexts(@NonNull Context context, @NonNull Notification notification) {
+    // index 0 = title, 1 = message
+    public String[] loadTexts(@NonNull Context context, @NonNull Notification notification) {
         final Bundle extras = getExtras(notification);
-        if (extras != null) loadFromExtras(notification, extras);
-        if (TextUtils.isEmpty(titleText)
-                && TextUtils.isEmpty(titleBigText)
-                && TextUtils.isEmpty(messageText)
-                && messageTextLines == null) {
-            loadFromView(context, notification);
+        String[] result = new String[]{};
+        if (extras != null) result = loadFromExtras(notification, extras);
+        if (TextUtils.isEmpty(result[0])
+                && TextUtils.isEmpty(result[1])) {
+            return(loadFromView(context, notification));
         }
+        return result;
     }
 
     private Bundle getExtras(@NonNull Notification notification) {
@@ -979,9 +969,11 @@ public class NotificationListener extends NotificationListenerService {
         }
     }
 
-    private void loadFromExtras(@NonNull Notification n, @NonNull Bundle extras) {
+    private String[] loadFromExtras(@NonNull Notification n, @NonNull Bundle extras) {
+        return new String[]{String.valueOf(extras.getCharSequence(Notification.EXTRA_TITLE)), String.valueOf(removeColorSpans(extras.getCharSequence(Notification.EXTRA_TEXT)))};
+        /*
         titleBigText = extras.getCharSequence(Notification.EXTRA_TITLE_BIG);
-        titleText = extras.getCharSequence(Notification.EXTRA_TITLE);
+
         infoText = extras.getCharSequence(Notification.EXTRA_INFO_TEXT);
         subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT);
         summaryText = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT);
@@ -990,9 +982,10 @@ public class NotificationListener extends NotificationListenerService {
 
         CharSequence[] lines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES);
         messageTextLines = doIt(lines);
+        */
     }
 
-    private void loadFromView(@NonNull Context context, @NonNull final Notification notification) {
+    private String[] loadFromView(@NonNull Context context, @NonNull final Notification notification) {
         ViewGroup view;
         {
 
@@ -1006,7 +999,7 @@ public class NotificationListener extends NotificationListenerService {
                 view = (ViewGroup) inflater.inflate(rvs.getLayoutId(), null);
                 rvs.reapply(this, view);
             } catch (Exception e) {
-                return;
+                return new String[]{};
             }
         }
 
@@ -1018,21 +1011,20 @@ public class NotificationListener extends NotificationListenerService {
 
         // No views
         if (textViews.size() == 0)
-            return;
+            return new String[]{};
 
         TextView title = findTitleTextView(textViews);
         textViews.remove(title); // no need of title view anymore
-        titleText = title.getText();
 
         // No views
         if (textViews.size() == 0)
-            return;
+            return new String[]{};
 
         // Pull all other texts and merge them.
         int length = textViews.size();
         CharSequence[] messages = new CharSequence[length];
         for (int i = 0; i < length; i++) messages[i] = textViews.get(i).getText();
-        messageTextLines = doIt(messages);
+        return new String[]{String.valueOf(title.getText()), String.valueOf(doIt(messages))};
     }
 
     @Nullable

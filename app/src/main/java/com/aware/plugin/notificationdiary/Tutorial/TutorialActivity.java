@@ -56,6 +56,7 @@ public class TutorialActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 page++;
+                AppManagement.setTutorialPage(context, page);
                 content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                 new Handler().postDelayed(new Runnable() {
                     @Override
@@ -69,6 +70,7 @@ public class TutorialActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 page--;
+                AppManagement.setTutorialPage(context, page);
                 content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_right));
                 new Handler().postDelayed(new Runnable() {
                     @Override
@@ -92,7 +94,7 @@ public class TutorialActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-        Log.d(TAG, "resumed");
+        page = AppManagement.getTutorialPage(this);
         refreshView(this);
     }
 
@@ -179,7 +181,6 @@ public class TutorialActivity extends AppCompatActivity {
                 next.setEnabled(true);
                 break;
             case 7:
-                Log.d(TAG, "page 7");
                 previous.setVisibility(View.VISIBLE);
                 next.setEnabled(false);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page7, null);
@@ -195,7 +196,6 @@ public class TutorialActivity extends AppCompatActivity {
                 });
                 parent.addView(content);
                 checkConditions();
-                next.setEnabled(true);
                 break;
             case 8:
                 finish();
@@ -209,8 +209,9 @@ public class TutorialActivity extends AppCompatActivity {
             next.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    AppManagement.setFirstLaunch(context);
-                    finish();
+                AppManagement.setTutorialPage(context, 1);
+                AppManagement.setFirstLaunch(context);
+                finish();
                 }
             });
         }
@@ -218,14 +219,15 @@ public class TutorialActivity extends AppCompatActivity {
             next.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    page++;
-                    content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            refreshView(context);
-                        }
-                    }, 500);
+                page++;
+                AppManagement.setTutorialPage(context, page);
+                content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshView(context);
+                    }
+                }, 500);
                 }
             });
         }
@@ -280,7 +282,6 @@ public class TutorialActivity extends AppCompatActivity {
         //Try to fetch active accessibility services directly from Android OS database instead of broken API...
         String settingValue = android.provider.Settings.Secure.getString(c.getContentResolver(), android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         if (settingValue != null) {
-            Log.d("ACCESSIBILITY", "Settings secure: " + settingValue);
             if (settingValue.contains(c.getPackageName())) {
                 enabled = true;
             }
@@ -290,7 +291,6 @@ public class TutorialActivity extends AppCompatActivity {
                 List<AccessibilityServiceInfo> enabledServices = AccessibilityManagerCompat.getEnabledAccessibilityServiceList(accessibilityManager, AccessibilityEventCompat.TYPES_ALL_MASK);
                 if (!enabledServices.isEmpty()) {
                     for (AccessibilityServiceInfo service : enabledServices) {
-                        Log.d("ACCESSIBILITY", "AccessibilityManagerCompat enabled: " + service.toString());
                         if (service.getId().contains(c.getPackageName())) {
                             enabled = true;
                             break;
@@ -305,7 +305,6 @@ public class TutorialActivity extends AppCompatActivity {
                 List<AccessibilityServiceInfo> enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityEvent.TYPES_ALL_MASK);
                 if (!enabledServices.isEmpty()) {
                     for (AccessibilityServiceInfo service : enabledServices) {
-                        Log.d("ACCESSIBILITY", "AccessibilityManager enabled: " + service.toString());
                         if (service.getId().contains(c.getPackageName())) {
                             enabled = true;
                             break;

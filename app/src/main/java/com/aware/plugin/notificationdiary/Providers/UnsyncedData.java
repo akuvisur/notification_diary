@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.aware.Aware;
@@ -179,7 +180,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
     public void updateEntry(final Context c, int id, ContentValues updated_values, boolean closeAfter) {
         init();
         database.update(DATABASE_NAME, updated_values, "_id=? " , new String[]{String.valueOf(id)});
-        if (!syncing) new Handler().postDelayed(new Runnable() {
+        if (!syncing) new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
                 if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(c)) > AppManagement.SYNC_DELAY) syncAlltoProvider(c);
@@ -212,10 +213,6 @@ public class UnsyncedData extends SQLiteOpenHelper {
             }
             cursor.close();
         }
-        else {
-            Log.d(TAG, "cursor was null");
-        }
-        Log.d(TAG, "done: " + result.size());
         if (closeAfter) database.close();
         return result;
     }

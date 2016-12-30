@@ -12,6 +12,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.RingtoneManager;
 import android.os.Handler;
+import android.provider.SyncStateContract;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
@@ -29,9 +30,11 @@ import android.os.Bundle;
 import android.text.Html;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -103,6 +106,7 @@ public class MainTabs extends AppCompatActivity {
         setSupportActionBar(toolbar);
         // Create the adapter that will return a fragment for each of the three
         // primary sections of the activity.
+
         mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager(), this, this);
 
         // Set up the ViewPager with the sections adapter.
@@ -117,9 +121,11 @@ public class MainTabs extends AppCompatActivity {
                 switch(position) {
                     case 0:
                         toolbar.setTitle("Notification Diary");
+                        refreshDiaryFragment(context);
                         break;
                     case 1:
                         toolbar.setTitle("Predictions");
+                        refreshPredictionView(context);
                         break;
                     case 2:
                         toolbar.setTitle("Help");
@@ -237,10 +243,8 @@ public class MainTabs extends AppCompatActivity {
                 Aware.stopPlugin(this, "com.aware.plugin.google.fused_location");
                 Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
             }
-            if (diaryViewGenerated && predictionViewGenerated) {
-                refreshDiaryFragment(context);
-                refreshPredictionView(context);
-            }
+            if (diaryViewGenerated) refreshDiaryFragment(context);
+            if (predictionViewGenerated) refreshPredictionView(context);
         }
     }
 
@@ -280,11 +284,13 @@ public class MainTabs extends AppCompatActivity {
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_diary) {
             mViewPager.setCurrentItem(0);
+            refreshDiaryFragment(context);
             return true;
         }
 
         else if (id == R.id.action_prediction) {
             mViewPager.setCurrentItem(1);
+            refreshPredictionView(context);
             return true;
         }
 
@@ -361,18 +367,22 @@ public class MainTabs extends AppCompatActivity {
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
             curFragmentNumber = getArguments().getInt(ARG_SECTION_NUMBER);
+            View view;
             switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
                 // Diary view
                 case 1:
-                    return activity.generateDiaryView(context, inflater, container);
+                    view = activity.generateDiaryView(context, inflater, container);
+                    return view;
                 case 2:
-                    return activity.generatePredictionView(context,inflater, container);
+                    view = activity.generatePredictionView(context,inflater, container);
+                    return view;
                 case 3:
                     return activity.generateHelpView(context,inflater, container);
                 case 4:
                     return activity.generateSettingsView(context, inflater, container);
                 default:
-                    return activity.generateDiaryView(context, inflater, container);
+                    view = activity.generateDiaryView(context, inflater, container);
+                    return view;
             }
         }
     }
@@ -382,6 +392,7 @@ public class MainTabs extends AppCompatActivity {
 
     private View emptyView;
     private View curDiaryRootView;
+    private LinearLayout diary_content_layout;
     private RelativeLayout button_container;
     private LinearLayout skipall_layout;
 
@@ -391,6 +402,7 @@ public class MainTabs extends AppCompatActivity {
         Log.d(TAG, "Generating new diary view");
 
         remainingNotifications = fetchRemainingNotifications(c);
+        /*
         emptyView = inflater.inflate(R.layout.diary_view_empty, container, false);
         if (remainingNotifications.size() == 0) {
             if (DEBUG) {
@@ -423,7 +435,12 @@ public class MainTabs extends AppCompatActivity {
             }
             return emptyView;
         }
+        */
         final View rootView = inflater.inflate(R.layout.diary_view, container, false);
+
+        diary_content_layout = (LinearLayout) rootView.findViewById(R.id.diary_content_view);
+        if (remainingNotifications.size() == 0) diary_content_layout.setVisibility(View.INVISIBLE);
+        else diary_content_layout.setVisibility(View.VISIBLE);
 
         notifications_remaining = (TextView) rootView.findViewById(R.id.diary_notifications_remaining);
 
@@ -574,7 +591,7 @@ public class MainTabs extends AppCompatActivity {
         });
 
         curDiaryRootView = rootView;
-
+        diaryViewGenerated = true;
         refreshDiaryFragment(c);
 
         if (DEBUG) {
@@ -606,25 +623,31 @@ public class MainTabs extends AppCompatActivity {
             button_container.addView(b);
         }
 
-        diaryViewGenerated = true;
         return rootView;
     }
 
     private void refreshDiaryFragment(Context c) {
+        if (!diaryViewGenerated) return;
+        Log.d(TAG, "refresh diary");
         remainingNotifications = fetchRemainingNotifications(c);
 
         updateRemainingNotifications(c);
 
         new UnsyncedData(c).syncAlltoProvider(c);
-
+        /*
         if (remainingNotifications.size() == 0) {
             ((LinearLayout) curDiaryRootView.findViewById(R.id.diary_parent_view)).removeAllViews();
             ((LinearLayout) curDiaryRootView.findViewById(R.id.diary_parent_view)).addView(emptyView);
             curDiaryRootView.findViewById(R.id.diary_parent_view).invalidate();
             return;
         }
-
+        */
+        if (remainingNotifications.size() == 0) {
+            diary_content_layout.setVisibility(View.INVISIBLE);
+        }
         else {
+            diary_content_layout.setVisibility(View.VISIBLE);
+
             content_inputted = false;
             timing_inputted = false;
 

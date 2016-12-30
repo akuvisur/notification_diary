@@ -1,11 +1,14 @@
 package com.aware.plugin.notificationdiary;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
+import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.text.format.DateFormat;
 import android.util.Log;
@@ -21,6 +24,8 @@ import java.util.Calendar;
 import java.util.Random;
 import java.util.TimeZone;
 
+import static android.content.Context.ALARM_SERVICE;
+
 /**
  * Created by aku on 14/11/16.
  */
@@ -34,6 +39,7 @@ public class AppManagement {
     public static final String RINGER_MODE = "RINGER_MODE";
     public static final String SOUND_VOLUME = "SOUND_VOLUME";
     public static final String FIRST_LAUNCH = "FIRST_LAUNCH";
+    public static final String CONDITIONS_ACCEPTED = "CONDITIONS_ACCEPTED";
 
     public static final String SYNC_TIME = "SYNC_TIME";
     // 5 nollaa perään
@@ -223,6 +229,31 @@ public class AppManagement {
         spe = sp.edit();
         spe.putBoolean(FIRST_LAUNCH, false);
         spe.apply();
+    }
+
+    public static boolean conditionsAccepted(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        return sp.getBoolean(CONDITIONS_ACCEPTED, false);
+    }
+
+    public static void acceptConditions(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        spe = sp.edit();
+        spe.putBoolean(CONDITIONS_ACCEPTED, true);
+        spe.apply();
+    }
+
+    public static void startDailyModel(Context c) {
+        if (predictionsEnabled(c)) {
+            Intent i = new Intent(c, ContentAnalysisService.class);
+
+            PendingIntent pi = PendingIntent.getService(c, 0, i, 0);
+            AlarmManager am = (AlarmManager) c.getSystemService(ALARM_SERVICE);
+            am.cancel(pi); // cancel any existing alarms
+            am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_DAY,
+                AlarmManager.INTERVAL_DAY, pi);
+        }
     }
 
 }

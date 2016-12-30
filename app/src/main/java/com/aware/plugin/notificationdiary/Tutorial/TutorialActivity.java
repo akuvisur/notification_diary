@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.provider.Settings;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.support.v4.view.accessibility.AccessibilityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -23,6 +24,7 @@ import android.widget.Toast;
 
 import com.aware.Applications;
 import com.aware.Aware;
+import com.aware.plugin.notificationdiary.AppManagement;
 import com.aware.plugin.notificationdiary.R;
 import com.aware.ui.PermissionsHandler;
 
@@ -97,6 +99,7 @@ public class TutorialActivity extends AppCompatActivity {
     Button permissions;
     Button accessibility_access;
     Button notification_access;
+    Button accept_conditions;
     boolean permissions_ok;
     boolean accessibility_ok;
     boolean notification_ok;
@@ -107,6 +110,7 @@ public class TutorialActivity extends AppCompatActivity {
                 previous.setVisibility(View.INVISIBLE);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page1, null);
                 parent.addView(content);
+                checkConditions();
                 break;
             case 2:
                 previous.setVisibility(View.VISIBLE);
@@ -141,41 +145,83 @@ public class TutorialActivity extends AppCompatActivity {
                 accessibility_access.setEnabled(!accessibility_ok);
                 notification_access.setEnabled(!notification_ok);
                 next.setEnabled(permissions_ok && accessibility_ok && notification_ok);
+                checkConditions();
                 break;
             case 3:
                 previous.setVisibility(View.VISIBLE);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page3, null);
                 parent.addView(content);
-
+                checkConditions();
                 break;
             case 4:
                 previous.setVisibility(View.VISIBLE);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page4, null);
                 parent.addView(content);
-
+                checkConditions();
                 break;
             case 5:
                 previous.setVisibility(View.VISIBLE);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page5, null);
                 parent.addView(content);
-
+                checkConditions();
                 break;
             case 6:
                 previous.setVisibility(View.VISIBLE);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page6, null);
                 parent.addView(content);
-                next.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        finish();
-                    }
-                });
+                checkConditions();
                 break;
             case 7:
+                Log.d(TAG, "page 7");
+                previous.setVisibility(View.VISIBLE);
+                next.setEnabled(false);
+                content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page7, null);
+                accept_conditions = (Button) content.findViewById(R.id.accept_conditions);
+                accept_conditions.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        AppManagement.acceptConditions(context);
+                        accept_conditions.setBackgroundColor(ContextCompat.getColor(context, R.color.colorPrimaryDark));
+                        accept_conditions.invalidate();
+                        next.setEnabled(true);
+                    }
+                });
+                parent.addView(content);
+                checkConditions();
+                break;
+            case 8:
                 finish();
         }
         parent.invalidate();
         parent.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_in));
+    }
+
+    private void checkConditions() {
+        if ((AppManagement.conditionsAccepted(context) && page == 6) || page == 7) {
+            Log.d(TAG, "last page");
+            next.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    finish();
+                }
+            });
+        }
+        else {
+            Log.d(TAG, "not last page");
+            next.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    page++;
+                    content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            refreshView(context);
+                        }
+                    }, 500);
+                }
+            });
+        }
     }
 
     private boolean checkPermissions(Context c) {

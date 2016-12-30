@@ -214,6 +214,26 @@ public class UnsyncedData extends SQLiteOpenHelper {
         return result;
     }
 
+    public int countUnlabeledNotifications(boolean closeAfter) {
+        init();
+        ArrayList<UnsyncedNotification> result = new ArrayList<>();
+        int count = 0;
+        Cursor cursor = database.query(DATABASE_NAME,
+                new String[]{UnsyncedData.Notifications_Table._ID},
+                UnsyncedData.Notifications_Table.seen + "=? AND " + Notifications_Table.labeled + "=? AND " + Notifications_Table.interaction_type + "=?",
+                new String[]{"1", "0", AppManagement.INTERACTION_TYPE_DISMISS},
+                null, null,
+                UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                count++;
+            }
+            cursor.close();
+        }
+        if (closeAfter) database.close();
+        return count;
+    }
 
     public ArrayList<UnsyncedNotification> getLabeledNotifications() {
         init();
@@ -345,6 +365,26 @@ public class UnsyncedData extends SQLiteOpenHelper {
         }
 
         return result;
+    }
+
+    public int countPredictions(Context c) {
+        init();
+        int count = 0;
+        Cursor cursor = database.query(DATABASE_NAME,
+                new String[]{Notifications_Table._ID},
+                Notifications_Table.predicted_as_show + " > -1 AND " + Notifications_Table.prediction_correct + " > -1 AND " + Notifications_Table.interaction_type + " !=?",
+                new String[]{AppManagement.INTERACTION_TYPE_REPLACE},
+                null, null,
+                Notifications_Table.generate_timestamp + " DESC");
+        if (cursor != null) {
+            rowiteration:
+            while (cursor.moveToNext()) {
+                count++;
+            }
+            cursor.close();
+        }
+
+        return count;
     }
 
     private boolean synching = false;

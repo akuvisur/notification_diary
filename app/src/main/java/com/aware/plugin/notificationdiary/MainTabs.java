@@ -93,17 +93,12 @@ public class MainTabs extends AppCompatActivity {
     private ViewPager mViewPager;
     private Toolbar toolbar;
 
-    private static boolean DEBUG = true;
+    private static boolean DEBUG = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_tabs);
-
-        if (AppManagement.isFirstLaunch(this)) {
-            Intent tutorial = new Intent(this, TutorialActivity.class);
-            startActivity(tutorial);
-        }
 
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -157,103 +152,108 @@ public class MainTabs extends AppCompatActivity {
             if (getIntent().getStringExtra(START_WITH_TAB).equals(PREDICTION_TAB))  mViewPager.setCurrentItem(1);
         }
 
-        AppManagement.setFirstLaunch(this);
-
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        PackageManager pm = getPackageManager();
-        boolean allPermissionsOk = true;
-        for (String perm : REQUIRED_PERMISSIONS) {
-            int hasPerm = pm.checkPermission(
-                    perm,
-                    getPackageName());
-            Log.d(TAG, "permission: " + perm + " " + hasPerm);
-            if (hasPerm != PackageManager.PERMISSION_GRANTED) {
-                allPermissionsOk = false;
-
-                Intent permissions = new Intent(this, PermissionsHandler.class);
-                permissions.putExtra(PermissionsHandler.EXTRA_REQUIRED_PERMISSIONS, REQUIRED_PERMISSIONS);
-                permissions.putExtra(PermissionsHandler.EXTRA_REDIRECT_ACTIVITY, getPackageName() + "/" + getClass().getName());
-                startActivity(permissions);
-                Log.d(TAG, "launching permissions handler");
-                break;
-            }
-        }
-
-        if (allPermissionsOk) {
-            Log.d(TAG, "All is good.");
-            Intent startAware = new Intent(this, Aware.class);
-            startService(startAware);
-
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (!Aware.isStudy(context)) Aware.joinStudy(context, "https://api.awareframework.com/index.php/webservice/index/980/5jg027moJgWg");
-                    Aware.startAWARE();
-
-                    Aware.setSetting(context, Applications.STATUS_AWARE_ACCESSIBILITY, true);
-                    Aware.setSetting(context, Aware_Preferences.STATUS_APPLICATIONS, true);
-                    Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_GPS, true);
-                    Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_NETWORK, true);
-
-                    Aware.setSetting(context, Aware_Preferences.WEBSERVICE_SILENT, true);
-                    Aware.setSetting(context, Aware_Preferences.STATUS_ESM, true);
-
-                    Aware.startApplications(context);
-                    Aware.startBattery(context);
-                    Aware.startScreen(context);
-                    Aware.startNetwork(context);
-                    Aware.startLocations(context);
-                    Aware.startESM(context);
-
-                    Aware.startPlugin(context, "com.aware.plugin.google.fused_location");
-                    // "start" this "plugin" so AWARE understands its running and syncs the data
-                    Aware.startPlugin(context, "com.aware.plugin.notificationdiary");
-
-                    isAccessibilityServiceActive(context);
-
-                    SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
-                    int test_count = sp.getInt(AppManagement.TEST_COUNT, 0);
-                    if (test_count <= 5) {
-                        AppManagement.enablePredictions(context, false);
-                        AppManagement.setOwnNotificationsHidden(context, false);
-                        AppManagement.setSoundControlAllowed(context, true);
-                        Toast.makeText(context, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
-                    }
-
-                    Intent service = new Intent(context, NotificationListener.class);
-                    startService(service);
-                }
-            }, 500);
-
+        if (AppManagement.isFirstLaunch(this)) {
+            Intent tutorial = new Intent(this, TutorialActivity.class);
+            startActivity(tutorial);
+            AppManagement.setFirstLaunch(this);
         }
         else {
-            Aware.setSetting(this, Applications.STATUS_AWARE_ACCESSIBILITY, false);
-            Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, false);
-            Aware.setSetting(this, Aware_Preferences.STATUS_LOCATION_GPS, false);
-            Aware.setSetting(this, Aware_Preferences.STATUS_LOCATION_NETWORK, false);
+            PackageManager pm = getPackageManager();
+            boolean allPermissionsOk = true;
+            for (String perm : REQUIRED_PERMISSIONS) {
+                int hasPerm = pm.checkPermission(
+                        perm,
+                        getPackageName());
+                if (hasPerm != PackageManager.PERMISSION_GRANTED) {
+                    allPermissionsOk = false;
 
-            Aware.stopBattery(this);
-            Aware.stopScreen(this);
-            Aware.stopNetwork(this);
-            Aware.stopLocations(this);
-            Aware.stopPlugin(this, "com.aware.plugin.google.fused_location");
-            Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
-        }
-        if (diaryViewGenerated) {
-            switch (mViewPager.getCurrentItem()) {
-                case 0:
-                    refreshDiaryFragment(context);
+                    Intent permissions = new Intent(this, PermissionsHandler.class);
+                    permissions.putExtra(PermissionsHandler.EXTRA_REQUIRED_PERMISSIONS, REQUIRED_PERMISSIONS);
+                    permissions.putExtra(PermissionsHandler.EXTRA_REDIRECT_ACTIVITY, getPackageName() + "/" + getClass().getName());
+                    startActivity(permissions);
                     break;
-                default:
-                    refreshDiaryFragment(context);
+                }
             }
-        }
 
-        Log.d(TAG, "plugin set to on " + Aware.getSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY));
+            if (allPermissionsOk) {
+                Intent startAware = new Intent(this, Aware.class);
+                startService(startAware);
+
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!Aware.isStudy(context))
+                            Aware.joinStudy(context, "https://api.awareframework.com/index.php/webservice/index/980/5jg027moJgWg");
+                        Aware.startAWARE();
+
+                        Aware.setSetting(context, Applications.STATUS_AWARE_ACCESSIBILITY, true);
+                        Aware.setSetting(context, Aware_Preferences.STATUS_APPLICATIONS, true);
+                        Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_GPS, true);
+                        Aware.setSetting(context, Aware_Preferences.STATUS_LOCATION_NETWORK, true);
+
+                        Aware.setSetting(context, Aware_Preferences.WEBSERVICE_SILENT, true);
+                        Aware.setSetting(context, Aware_Preferences.STATUS_ESM, true);
+
+                        Aware.startApplications(context);
+                        Aware.startBattery(context);
+                        Aware.startScreen(context);
+                        Aware.startNetwork(context);
+                        Aware.startLocations(context);
+                        Aware.startESM(context);
+
+                        Aware.startPlugin(context, "com.aware.plugin.google.fused_location");
+                        // "start" this "plugin" so AWARE understands its running and syncs the data
+                        Aware.startPlugin(context, "com.aware.plugin.notificationdiary");
+
+                        isAccessibilityServiceActive(context);
+
+                        SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
+                        int test_count = sp.getInt(AppManagement.TEST_COUNT, 0);
+                        if (test_count <= 5) {
+                            AppManagement.enablePredictions(context, false);
+                            AppManagement.setOwnNotificationsHidden(context, false);
+                            AppManagement.setSoundControlAllowed(context, true);
+                            Toast.makeText(context, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
+                        }
+
+                        Intent service = new Intent(context, NotificationListener.class);
+                        startService(service);
+                    }
+                }, 500);
+
+            } else {
+                Aware.setSetting(this, Applications.STATUS_AWARE_ACCESSIBILITY, false);
+                Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, false);
+                Aware.setSetting(this, Aware_Preferences.STATUS_LOCATION_GPS, false);
+                Aware.setSetting(this, Aware_Preferences.STATUS_LOCATION_NETWORK, false);
+
+                Aware.stopBattery(this);
+                Aware.stopScreen(this);
+                Aware.stopNetwork(this);
+                Aware.stopLocations(this);
+                Aware.stopPlugin(this, "com.aware.plugin.google.fused_location");
+                Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
+            }
+            if (diaryViewGenerated && predictionViewGenerated) {
+                switch (mViewPager.getCurrentItem()) {
+                    case 0:
+                        refreshDiaryFragment(context);
+                        break;
+                    case 1:
+                        refreshPredictionView(context);
+                        break;
+                    default:
+                        refreshDiaryFragment(context);
+                        refreshPredictionView(context);
+                }
+            }
+
+        }
     }
 
     @Override
@@ -263,6 +263,16 @@ public class MainTabs extends AppCompatActivity {
             if (progressReceiver != null) unregisterReceiver(progressReceiver);
         }
         catch (Exception e) {e.printStackTrace();}
+
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                UnsyncedData ud = new UnsyncedData(context);
+                int count = (ud.countPredictions(context) + ud.countUnlabeledNotifications(true));
+                if (count > 0) BadgeUtils.setBadge(context, count);
+                else BadgeUtils.clearBadge(context);
+            }
+        }, 500);
     }
 
     @Override
@@ -630,12 +640,13 @@ public class MainTabs extends AppCompatActivity {
     }
 
     private void refreshDiaryFragment(Context c) {
+        remainingNotifications = fetchRemainingNotifications(c);
+
         updateRemainingNotifications(c);
 
         new UnsyncedData(c).syncAlltoProvider(c);
 
         if (remainingNotifications.size() == 0) {
-            Log.d(TAG, "no more stuff");
             ((LinearLayout) curRootView.findViewById(R.id.diary_parent_view)).removeAllViews();
             ((LinearLayout) curRootView.findViewById(R.id.diary_parent_view)).addView(emptyView);
             curRootView.findViewById(R.id.diary_parent_view).invalidate();
@@ -711,7 +722,7 @@ public class MainTabs extends AppCompatActivity {
     LinearLayout accuracy_visualisation;
 
     ClassifierProgressReceiver progressReceiver;
-
+    private boolean predictionViewGenerated = false;
     public View generatePredictionView(final Context c, final LayoutInflater inflater, final ViewGroup container) {
         if (AppManagement.predictionsEnabled(c)) {
             final View rootView = inflater.inflate(R.layout.prediction_view_enabled, container, false);
@@ -791,6 +802,7 @@ public class MainTabs extends AppCompatActivity {
             );
 
             modelInfo.close();
+            predictionViewGenerated = true;
 
             return rootView;
         }
@@ -814,6 +826,8 @@ public class MainTabs extends AppCompatActivity {
 
                             Intent srvIntent = new Intent(c, ContentAnalysisService.class);
                             c.startService(srvIntent);
+
+                            AppManagement.startDailyModel(c);
                         }
                     }, 500);
                 }
@@ -831,18 +845,66 @@ public class MainTabs extends AppCompatActivity {
                 classifier_progress_text.setVisibility(View.INVISIBLE);
             }
             else if (progressReceiver != null) {
-                classifier_progress.setProgress((float) progressReceiver.progress);
+                classifier_progress.setProgress(Math.min(100, (float) progressReceiver.progress));
                 classifier_progress.setSecondaryProgress((float) progressReceiver.progress + 10);
 
                 classifier_progress_text.setText(progressReceiver.progress + "% complete");
             }
 
-            classifier_progress.setProgress((float) training_data_amount);
+            classifier_progress.setProgress(Math.min(100, (float) training_data_amount));
             classifier_progress_text.setText(training_data_amount + " / 100 labeled notifications");
+            predictionViewGenerated = true;
 
             return rootView;
         }
 
+    }
+
+    public void refreshPredictionView(final Context c) {
+        if (!predictionViewGenerated) return;
+        if (AppManagement.predictionsEnabled(c)) {
+            J48Classifiers modelInfo = new J48Classifiers(c);
+            EvaluationResult curResult = modelInfo.getCurrentClassifier();
+
+            model_accuracy.setText(new DecimalFormat("#.0").format(curResult.accuracy*100) + "%");
+
+            ViewGroup.LayoutParams params = accuracy_visualisation.getLayoutParams();
+            params.height = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (float) (curResult.accuracy*160), getResources().getDisplayMetrics());
+            accuracy_visualisation.setLayoutParams(params);
+            if (curResult.accuracy < .8) accuracy_visualisation.setBackgroundColor(ContextCompat.getColor(c, R.color.accent_yellow));
+            if (curResult.accuracy < .6) accuracy_visualisation.setBackgroundColor(ContextCompat.getColor(c, R.color.accent_red));
+
+            DecimalFormat df = new DecimalFormat("#.0");
+
+            accuracy_description.setText(
+                    Html.fromHtml("The overall accuracy of the model is <b>" + df.format(curResult.accuracy*100) + "%</b>. " +
+                            "It has approximately <b>" + df.format(curResult.hide_false_positive*100) + "%</b> probability of mistakenly hiding arriving notification and <b>" +
+                            df.format(curResult.show_false_positive*100) + "%</b> probability of showing an unwanted notification. " +
+                            "Finally, using the Kappa statistic the model is approximately <b>" + df.format(curResult.kappa*100) + "%</b> better at prediction than a random guess.")
+            );
+
+            modelInfo.close();
+        }
+        else {
+            UnsyncedData helper = new UnsyncedData(c);
+            int training_data_amount = helper.getNumOfTrainingData();
+            if (training_data_amount >= 100) enable_predictions.setEnabled(true);
+            if (DEBUG) enable_predictions.setEnabled(true);
+
+            if (progressReceiver != null && progressReceiver.progress == 0) {
+                classifier_progress.setVisibility(View.INVISIBLE);
+                classifier_progress_text.setVisibility(View.INVISIBLE);
+            }
+            else if (progressReceiver != null) {
+                classifier_progress.setProgress(Math.min(100, (float) progressReceiver.progress));
+                classifier_progress.setSecondaryProgress((float) progressReceiver.progress + 10);
+
+                classifier_progress_text.setText(progressReceiver.progress + "% complete");
+            }
+
+            classifier_progress.setProgress(Math.min(100, (float) training_data_amount));
+            classifier_progress_text.setText(training_data_amount + " / 100 labeled notifications");
+        }
     }
 
     Button tutorial_button;
@@ -863,6 +925,7 @@ public class MainTabs extends AppCompatActivity {
 
     CheckBox notifications_hidden;
     CheckBox sound_control_allowed;
+    TextView device_id;
     public View generateSettingsView(final Context context, final LayoutInflater inflater, final ViewGroup container) {
         final View rootView = inflater.inflate(R.layout.settings, container, false);
         notifications_hidden = (CheckBox) rootView.findViewById(R.id.settings_selfnotification);
@@ -882,6 +945,9 @@ public class MainTabs extends AppCompatActivity {
 
         notifications_hidden.setChecked(AppManagement.getOwnNotificationsHidden(context));
         sound_control_allowed.setChecked(AppManagement.getSoundControlAllowed(context));
+
+        device_id = (TextView) rootView.findViewById(R.id.settings_device_id);
+        device_id.setText("DEVICE ID: " + Aware.getSetting(context, Aware_Preferences.DEVICE_ID));
 
         return rootView;
     }

@@ -86,4 +86,10 @@
         android:layout_height="2dp"
         android:background="#555555"></LinearLayout>
 
+    <TextView
+        android:text=""
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/settings_device_id" />
+
 </LinearLayout>

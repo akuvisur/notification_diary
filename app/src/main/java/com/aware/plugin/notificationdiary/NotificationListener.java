@@ -16,11 +16,13 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.provider.Settings;
@@ -344,6 +346,8 @@ public class NotificationListener extends NotificationListenerService {
 
             Intent startAlarmManager = new Intent(this, NotificationAlarmManager.class);
             startService(startAlarmManager);
+
+            AppManagement.startDailyModel(this);
         }
 
 
@@ -883,6 +887,15 @@ public class NotificationListener extends NotificationListenerService {
         interactionForegroundApplications.remove(sbn);
         // remove this from list
         arrivedNotifications.remove(matchingNotification);
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                UnsyncedData ud = new UnsyncedData(context);
+                int count = (ud.countPredictions(context) + ud.countUnlabeledNotifications(true));
+                if (count > 0) BadgeUtils.setBadge(context, count);
+                else BadgeUtils.clearBadge(context);
+            }
+        }, 500);
     }
 
     private class StatusBarNotificationCheckedRunnable implements Runnable {

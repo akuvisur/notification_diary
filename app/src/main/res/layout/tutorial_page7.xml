@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <Button
+        android:text="I UNDERSTAND AND ACCEPT"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/accept_conditions"
+        android:layout_gravity="center_vertical|center_horizontal"
+        android:background="@color/colorPrimaryLight"
+        android:padding="6dp"/>
+
+    <TextView
+        android:text="This application is made for research purposes and part of the data collected by this application is anonymously stored on our servers.\r\n
+\r\nSensitive information, such as the contents of your notifications (text) are not uploaded to our servers, and all data is anonymised so the people who have access to the data have no way of knowing your identity.\r\n
+\r\nBy clicking the above button, you understand and accept these conditions and wish to contribute to our on-going research.\r\n
+\r\nThank you for your contribution, and if you have any questions related to the application, please send email to:\r\n
+\r\naku.visuri@oulu.fi
+        "
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView21" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="horizontal">
+        <ImageView
+            android:layout_width="255dp"
+            android:layout_height="match_parent"
+            app:srcCompat="@drawable/logos"
+            android:id="@+id/imageView6" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:srcCompat="@drawable/aware_logo"
+            android:id="@+id/imageView7" />
+
+
+    </LinearLayout>
+
+</LinearLayout>

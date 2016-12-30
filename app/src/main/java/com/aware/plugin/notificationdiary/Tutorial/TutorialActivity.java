@@ -41,12 +41,13 @@ public class TutorialActivity extends AppCompatActivity {
 
     private static ArrayList<String> REQUIRED_PERMISSIONS = new ArrayList<>();
 
-    int page = 1;
+    int page;
     private Context context;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         context = this;
+        page = 1;
         setContentView(R.layout.activity_tutorial);
         parent = (ScrollView) findViewById(R.id.tutorial_parent);
         next = (Button) findViewById(R.id.tutorial_next_button);
@@ -91,6 +92,7 @@ public class TutorialActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
+        Log.d(TAG, "resumed");
         refreshView(this);
     }
 
@@ -111,6 +113,7 @@ public class TutorialActivity extends AppCompatActivity {
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page1, null);
                 parent.addView(content);
                 checkConditions();
+                next.setEnabled(true);
                 break;
             case 2:
                 previous.setVisibility(View.VISIBLE);
@@ -152,24 +155,28 @@ public class TutorialActivity extends AppCompatActivity {
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page3, null);
                 parent.addView(content);
                 checkConditions();
+                next.setEnabled(true);
                 break;
             case 4:
                 previous.setVisibility(View.VISIBLE);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page4, null);
                 parent.addView(content);
                 checkConditions();
+                next.setEnabled(true);
                 break;
             case 5:
                 previous.setVisibility(View.VISIBLE);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page5, null);
                 parent.addView(content);
                 checkConditions();
+                next.setEnabled(true);
                 break;
             case 6:
                 previous.setVisibility(View.VISIBLE);
                 content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page6, null);
                 parent.addView(content);
                 checkConditions();
+                next.setEnabled(true);
                 break;
             case 7:
                 Log.d(TAG, "page 7");
@@ -188,6 +195,7 @@ public class TutorialActivity extends AppCompatActivity {
                 });
                 parent.addView(content);
                 checkConditions();
+                next.setEnabled(true);
                 break;
             case 8:
                 finish();
@@ -198,16 +206,15 @@ public class TutorialActivity extends AppCompatActivity {
 
     private void checkConditions() {
         if ((AppManagement.conditionsAccepted(context) && page == 6) || page == 7) {
-            Log.d(TAG, "last page");
             next.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    AppManagement.setFirstLaunch(context);
                     finish();
                 }
             });
         }
         else {
-            Log.d(TAG, "not last page");
             next.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {

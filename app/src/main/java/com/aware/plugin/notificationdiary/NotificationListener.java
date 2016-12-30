@@ -163,7 +163,7 @@ public class NotificationListener extends NotificationListenerService {
                 for (UnsyncedNotification n : arrivedNotifications) {
                     if (!n.seen) {
                         n.seen = true;
-                        n.seen_timestamp = AppManagement.getCurrentTime();
+                        n.seen_timestamp = System.currentTimeMillis();
                         UnsyncedData helper = new UnsyncedData(context);
                         ContentValues updated_values = new ContentValues();
                         updated_values.put(UnsyncedData.Notifications_Table.seen_timestamp, n.seen_timestamp);
@@ -292,10 +292,7 @@ public class NotificationListener extends NotificationListenerService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int something) {
-        Log.d(TAG, "onStartCommand");
         context = this;
-
-        Log.d(TAG, "finished onStart");
 
         return START_STICKY;
     }
@@ -417,11 +414,12 @@ public class NotificationListener extends NotificationListenerService {
         // notification in the tray
         UnsyncedNotification replacedNotification = null;
         for (UnsyncedNotification n : arrivedNotifications) {
-            if (n.application_package.equals(sbn.getPackageName())) {
+            if (n.application_package.equals(sbn.getPackageName()) && n.notification_id == sbn.getId()) {
                 ContentValues replace = new ContentValues();
                 replace.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_REPLACE);
                 // these are the "final" context values for this notification
                 replace = new InteractionContext(context).addToValues(replace);
+                replace.put(UnsyncedData.Notifications_Table.notification_id, n.notification_id);
                 UnsyncedData helper = new UnsyncedData(context);
                 helper.updateEntry(context, (int) n.sqlite_row_id, replace, true);
                 replacedNotification = n;
@@ -437,17 +435,18 @@ public class NotificationListener extends NotificationListenerService {
         loadTexts(this, n);
 
         UnsyncedNotification unsynced = new UnsyncedNotification();
-        unsynced.generate_timestamp = AppManagement.getCurrentTime();
+        unsynced.generate_timestamp = System.currentTimeMillis();
         if (messageText != null) unsynced.message = String.valueOf(messageText); else messageText = "";
         if (titleText != null) unsynced.title = String.valueOf(titleText); else titleText = "";
         unsynced.application_package = sbn.getPackageName();
         unsynced.notification_id = sbn.getId();
+        Log.d(TAG, "new posted, package: " + unsynced.application_package + " id: " + unsynced.notification_id);
         unsynced.predicted_as_show = showNotification;
 
         if (Build.VERSION.SDK_INT >= 21 && n.category != null) unsynced.notification_category = n.category;
         else unsynced.notification_category = UNKNOWN;
 
-        if (!SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF)) {unsynced.seen = true; unsynced.seen_timestamp = AppManagement.getCurrentTime();}
+        if (!SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF)) {unsynced.seen = true; unsynced.seen_timestamp = System.currentTimeMillis();}
 
         ContentValues c = new ContentValues();
         c.put(UnsyncedData.Notifications_Table.application_package, unsynced.application_package);
@@ -495,6 +494,127 @@ public class NotificationListener extends NotificationListenerService {
             sendNotificationCue(sbn);
         }
     }
+
+    ArrayList<String> stopWordsEng;
+    ArrayList<String> stopWordsFin;
+    public ArrayList<String> strip(String title, String contents) {
+        String a = title + " " + contents;
+        a = a.toLowerCase().replaceAll("^[a-zA-Z0-9äöüÄÖÜ]", " ");
+        ArrayList<String> words = new ArrayList<>(Arrays.asList(a.split(" ")));
+        words.removeAll(stopWordsEng);
+        words.removeAll(stopWordsFin);
+        return words;
+    }
+
+    HashMap<StatusBarNotification, String> interactionForegroundApplications = new HashMap<>();
+    public void onNotificationRemoved(StatusBarNotification sbn) {
+        Log.d(TAG, "*** NOTIFICATION REMOVED");
+        Log.d(TAG, "id : " + sbn.getId());
+        String packageName = sbn.getPackageName();
+
+        if (!AppManagement.BLACKLIST.contains(packageName)) new Handler(Looper.getMainLooper()).postDelayed(new StatusBarNotificationCheckedRunnable(sbn, System.currentTimeMillis()), AppManagement.INTERACTION_CHECK_DELAY);
+        else Log.d(TAG, "Blacklisted app");
+
+        interactionForegroundApplications.put(sbn, FOREGROUND_APP_PACKAGE);
+    }
+
+    private void checkNotificationInteraction(StatusBarNotification sbn, ArrayList<String> foreApps) {
+        int identifier = UnsyncedNotification.getHashIdentifier(sbn.getId(), sbn.getPackageName());
+
+        getExtras(sbn.getNotification());
+        loadTexts(this, sbn.getNotification());
+
+        UnsyncedNotification matchingNotification = null;
+        /*
+        &&
+                    (n.title != null) &&
+                    (n.title.equals(titleText))
+         */
+        for (UnsyncedNotification n : arrivedNotifications) {
+            if ((identifier == n.getHashIdentifier())) {
+                matchingNotification = n;
+                break;
+            }
+        }
+        // Did not find a matching notification
+        if (matchingNotification == null) {Log.d(TAG, "No match found");}
+        else {
+            Log.d(TAG, "Match found.");
+
+            ContentValues updated_values = new ContentValues();
+            matchingNotification.interaction_timestamp = System.currentTimeMillis();
+
+            updated_values = new InteractionContext(context).addToValues(updated_values);
+            updated_values.put(UnsyncedData.Notifications_Table.interaction_timestamp, System.currentTimeMillis());
+            updated_values.put(UnsyncedData.Notifications_Table.foreground_application_package, interactionForegroundApplications.get(sbn));
+
+            // if automatically hidden
+            if (matchingNotification.predicted_as_show == 0)
+                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_PREDICTION_HIDE;
+
+            else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF)) {
+                // system auto removed
+                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS;
+                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS);
+            } else if (foreApps.contains(matchingNotification.application_package) || matchingNotification.application_package.equals(FOREGROUND_APP_PACKAGE)) {
+                // click
+                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_CLICK;
+                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_CLICK);
+            } else {
+                // dismiss
+                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_DISMISS;
+                updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_DISMISS);
+            }
+
+            UnsyncedData helper = new UnsyncedData(context);
+            helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values, true);
+
+            interactionForegroundApplications.remove(sbn);
+            // remove this from list
+            arrivedNotifications.remove(matchingNotification);
+
+            final UnsyncedNotification match = matchingNotification;
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (!AppManagement.predictionsEnabled(context) && !match.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
+                        UnsyncedData h = new UnsyncedData(context);
+                        getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, h.get(match.sqlite_row_id, true).toSyncableContentValues(context));
+                    }
+                    UnsyncedData ud = new UnsyncedData(context);
+                    int count = (ud.countPredictions(context) + ud.countUnlabeledNotifications(true));
+                    if (count > 0) BadgeUtils.setBadge(context, count);
+                    else BadgeUtils.clearBadge(context);
+                }
+            }, 500);
+        }
+    }
+
+    private class StatusBarNotificationCheckedRunnable implements Runnable {
+
+        private StatusBarNotification notif;
+        private long timestamp;
+
+        public StatusBarNotificationCheckedRunnable(StatusBarNotification s, Long timestamp) {
+            this.notif = s;
+            this.timestamp = timestamp;
+        }
+
+        @Override
+        public void run() {
+            Cursor apps_run = getContentResolver().query(Applications_Provider.Applications_Foreground.CONTENT_URI, null, "TIMESTAMP > " + timestamp, null, null);
+            ArrayList<String> runApps = new ArrayList<>();
+            if (apps_run != null ) {
+                while (apps_run.moveToNext()) {
+                    runApps.add(apps_run.getString(apps_run.getColumnIndex(Applications_Provider.Applications_Foreground.PACKAGE_NAME)));
+                }
+                apps_run.close();
+            }
+            checkNotificationInteraction(notif, runApps);
+
+        }
+    }
+
 
     private Boolean shouldNotificationBeDisplayed(Context c1, StatusBarNotification sbn) {
         // the setting is "Never hide notifications from this app", so true means dont hide
@@ -806,123 +926,6 @@ public class NotificationListener extends NotificationListenerService {
         Log.d(TAG, "send broadcast for CUE");
     }
 
-    ArrayList<String> stopWordsEng;
-    ArrayList<String> stopWordsFin;
-    public ArrayList<String> strip(String title, String contents) {
-        String a = title + " " + contents;
-        a = a.toLowerCase().replaceAll("^[a-zA-Z0-9äöüÄÖÜ]", " ");
-        ArrayList<String> words = new ArrayList<>(Arrays.asList(a.split(" ")));
-        words.removeAll(stopWordsEng);
-        words.removeAll(stopWordsFin);
-        return words;
-    }
-
-    HashMap<StatusBarNotification, String> interactionForegroundApplications = new HashMap<>();
-    public void onNotificationRemoved(StatusBarNotification sbn) {
-        Log.d(TAG, "*** NOTIFICATION REMOVED");
-        Log.d(TAG, "id : " + sbn.getId());
-        String packageName = sbn.getPackageName();
-
-        if (!AppManagement.BLACKLIST.contains(packageName)) new Handler(Looper.getMainLooper()).postDelayed(new StatusBarNotificationCheckedRunnable(sbn, System.currentTimeMillis()), AppManagement.INTERACTION_CHECK_DELAY);
-        else Log.d(TAG, "Blacklisted app");
-
-        interactionForegroundApplications.put(sbn, FOREGROUND_APP_PACKAGE);
-    }
-
-    private void checkNotificationInteraction(StatusBarNotification sbn, ArrayList<String> foreApps) {
-        int identifier = UnsyncedNotification.getHashIdentifier(sbn.getId(), sbn.getPackageName());
-
-        getExtras(sbn.getNotification());
-        loadTexts(this, sbn.getNotification());
-
-        UnsyncedNotification matchingNotification = null;
-        for (UnsyncedNotification n : arrivedNotifications) {
-            if ((identifier == n.getHashIdentifier()) &&
-                    (n.title != null) &&
-                    (n.title.equals(titleText))) {
-                matchingNotification = n;
-                break;
-            }
-        }
-        // Did not find a matching notification
-        if (matchingNotification == null) {Log.d(TAG, "No match found"); return;}
-        else Log.d(TAG, "Match found.");
-
-        ContentValues updated_values = new ContentValues();
-        matchingNotification.interaction_timestamp = AppManagement.getCurrentTime();
-
-        updated_values = new InteractionContext(context).addToValues(updated_values);
-        updated_values.put(UnsyncedData.Notifications_Table.interaction_timestamp, AppManagement.getCurrentTime());
-        updated_values.put(UnsyncedData.Notifications_Table.foreground_application_package, interactionForegroundApplications.get(sbn));
-
-        // if automatically hidden
-        if (matchingNotification.predicted_as_show == 0) matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_PREDICTION_HIDE;
-
-        else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF)) {
-            // system auto removed
-            matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS;
-            updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS);
-        }
-
-        else if (foreApps.contains(matchingNotification.application_package) || matchingNotification.application_package.equals(FOREGROUND_APP_PACKAGE)) {
-            // click
-            matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_CLICK;
-            updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_CLICK);
-        }
-
-        else {
-            // dismiss
-            matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_DISMISS;
-            updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_DISMISS);
-        }
-
-        UnsyncedData helper = new UnsyncedData(context);
-        helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values, true);
-
-        if (!AppManagement.predictionsEnabled(context) && !matchingNotification.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
-            UnsyncedData h = new UnsyncedData(context);
-            getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, h.get(matchingNotification.sqlite_row_id, true).toSyncableContentValues(context));
-        }
-
-        interactionForegroundApplications.remove(sbn);
-        // remove this from list
-        arrivedNotifications.remove(matchingNotification);
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                UnsyncedData ud = new UnsyncedData(context);
-                int count = (ud.countPredictions(context) + ud.countUnlabeledNotifications(true));
-                if (count > 0) BadgeUtils.setBadge(context, count);
-                else BadgeUtils.clearBadge(context);
-            }
-        }, 500);
-    }
-
-    private class StatusBarNotificationCheckedRunnable implements Runnable {
-
-        private StatusBarNotification notif;
-        private long timestamp;
-
-        public StatusBarNotificationCheckedRunnable(StatusBarNotification s, Long timestamp) {
-            this.notif = s;
-            this.timestamp = timestamp;
-        }
-
-        @Override
-        public void run() {
-            Cursor apps_run = getContentResolver().query(Applications_Provider.Applications_Foreground.CONTENT_URI, null, "TIMESTAMP > " + timestamp, null, null);
-            ArrayList<String> runApps = new ArrayList<>();
-            if (apps_run != null ) {
-                while (apps_run.moveToNext()) {
-                    runApps.add(apps_run.getString(apps_run.getColumnIndex(Applications_Provider.Applications_Foreground.PACKAGE_NAME)));
-                    Log.d(TAG, "runapps: " + apps_run.getString(apps_run.getColumnIndex(Applications_Provider.Applications_Foreground.PACKAGE_NAME)));
-                }
-                apps_run.close();
-            }
-            checkNotificationInteraction(notif, runApps);
-
-        }
-    }
 
     /*
     Following code originally by author of AcDisplay

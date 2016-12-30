@@ -95,6 +95,14 @@ public class DiaryNotification {
         return (String.valueOf(notification_id) + String.valueOf(application_package)).hashCode();
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof DiaryNotification) {
+            return getHashIdentifier() == ((DiaryNotification) o).getHashIdentifier();
+        }
+        return false;
+    }
+
     public static int getHashIdentifier(int id, String pkg) {
         return (String.valueOf(id) + String.valueOf(pkg)).hashCode();
     }
@@ -201,9 +209,6 @@ public class DiaryNotification {
         // user labeling
         if (timing_value != null) result.put(Provider.Notifications_Data.timing, timing_value);
         if (content_importance_value != null) result.put(Provider.Notifications_Data.content_importance, content_importance_value);
-
-        Log.d(TAG, "predicted as show:" + predicted_as_show + " and correct: " + prediction_correct);
-
         // predictions
         if (predicted_as_show != null) result.put(Provider.Notifications_Data.predicted_as_show, predicted_as_show);
         if (prediction_correct != null) result.put(Provider.Notifications_Data.prediction_correct, prediction_correct);
@@ -211,4 +216,8 @@ public class DiaryNotification {
         return result;
     }
 
+    @Override
+    public String toString() {
+        return "id: " + notification_id + " package: " + application_package + " labeled: " + labeled;
+    }
 }

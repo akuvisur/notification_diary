@@ -43,7 +43,8 @@ public class AppManagement {
 
     public static final String SYNC_TIME = "SYNC_TIME";
     // 5 nollaa perään
-    public static final long SYNC_DELAY = 18;
+    //public static final long SYNC_DELAY = 1800000;
+    public static final long SYNC_DELAY = 1000;
 
     public static final String SOUND_CONTROL_ALLOWED = "SOUND_CONTROL_ALLOWED";
     public static final String SELF_NOTIFICATIONS_HIDDEN = "SELF_NOTIFICATIONS_HIDDEN";
@@ -118,10 +119,6 @@ public class AppManagement {
     public static long getSyncTimestamp(Context c) {
         sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
         return sp.getLong(SYNC_TIME, System.currentTimeMillis());
-    }
-
-    public static long getCurrentTime() {
-        return System.currentTimeMillis()/1000;
     }
 
     static Calendar calendar = Calendar.getInstance();
@@ -256,4 +253,16 @@ public class AppManagement {
         }
     }
 
+    private static final String TUTORIAL_PAGE = "TUTORIAL_PAGE";
+    public static void setTutorialPage(Context c, int page) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        spe = sp.edit();
+        spe.putInt(TUTORIAL_PAGE, page);
+        spe.apply();
+    }
+
+    public static int getTutorialPage(Context c) {
+        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        return sp.getInt(TUTORIAL_PAGE, 1);
+    }
 }

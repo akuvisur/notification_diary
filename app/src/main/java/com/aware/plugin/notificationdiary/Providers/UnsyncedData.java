@@ -1,6 +1,5 @@
 package com.aware.plugin.notificationdiary.Providers;
 
-import android.app.Notification;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -168,6 +167,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
 
     public long insertRecord(Context c, ContentValues values) {
         init();
+        Log.d(TAG, "inserting new with id: " + values.getAsString(Notifications_Table.notification_id));
         values.put(Notifications_Table.labeled, 0);
         values.put(Notifications_Table.TIMESTAMP, System.currentTimeMillis());
         values.put(Notifications_Table.DEVICE_ID, Aware.getSetting(c, Aware_Preferences.DEVICE_ID));
@@ -178,9 +178,14 @@ public class UnsyncedData extends SQLiteOpenHelper {
 
     public void updateEntry(final Context c, int id, ContentValues updated_values, boolean closeAfter) {
         init();
-        database.update(DATABASE_NAME, updated_values, "_id=" + id, null);
-        if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(c)) > AppManagement.SYNC_DELAY) syncAlltoProvider(c);
-        if (closeAfter) database.close();
+        database.update(DATABASE_NAME, updated_values, "_id=? " , new String[]{String.valueOf(id)});
+        if (!syncing) new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(c)) > AppManagement.SYNC_DELAY) syncAlltoProvider(c);
+            }
+        },5000);
+        //if (closeAfter) database.close();
     }
 
     public ArrayList<UnsyncedNotification> getUnlabeledNotifications(boolean closeAfter) {
@@ -189,7 +194,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
 
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
-                UnsyncedData.Notifications_Table.seen + "=? AND " + Notifications_Table.labeled + "=? AND " + Notifications_Table.interaction_type + "=?",
+                UnsyncedData.Notifications_Table.seen + "=? AND " + UnsyncedData.Notifications_Table.labeled + "=? AND " + UnsyncedData.Notifications_Table.interaction_type + "=?",
                 new String[]{"1", "0", AppManagement.INTERACTION_TYPE_DISMISS},
                 null, null,
                 UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
@@ -197,6 +202,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 UnsyncedNotification u = new UnsyncedNotification();
+                u.notification_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table.notification_id));
                 u.message = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.message));
                 u.title = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.title));
                 u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(UnsyncedData.Notifications_Table.seen_timestamp));
@@ -253,6 +259,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
             if (!cursor.moveToFirst()) Log.d(TAG, "empty cursor");
             while (cursor.moveToNext()) {
                 UnsyncedNotification u = new UnsyncedNotification();
+                u.notification_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table.notification_id));
                 u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp));
                 u.generate_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.generate_timestamp));
                 u.interaction_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.interaction_timestamp));
@@ -387,16 +394,16 @@ public class UnsyncedData extends SQLiteOpenHelper {
         return count;
     }
 
-    private boolean synching = false;
+    private boolean syncing = false;
     public void syncAlltoProvider(Context c) {
-        if (synching) return;
-        synching = true;
+        if (syncing) return;
+        syncing = true;
 
         AppManagement.setSyncTimestamp(c, System.currentTimeMillis());
 
         init();
 
-        Log.d(TAG, "Sycnhing local database in order to be uploaded...");
+        Log.d(TAG, "Syncing local database in order to be uploaded...");
         // TODO fix this
         Cursor cursor = database.query(
                 DATABASE_NAME,
@@ -418,9 +425,11 @@ public class UnsyncedData extends SQLiteOpenHelper {
         ArrayList<Integer> ids = new ArrayList<>();
         if (cursor != null) {
             while (cursor.moveToNext()) {
+
                 ids.add(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)));
                 UnsyncedNotification u = new UnsyncedNotification();
                 u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp));
+                u.notification_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table.notification_id));
                 u.generate_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.generate_timestamp));
                 u.interaction_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.interaction_timestamp));
                 u.application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package))  == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package));
@@ -438,13 +447,14 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));;
                 u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
                 u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
+                u.labeled = cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) > 0;
                 u.predicted_as_show = cursor.getString(cursor.getColumnIndex(Notifications_Table.predicted_as_show)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
                 u.prediction_correct = cursor.getString(cursor.getColumnIndex(Notifications_Table.prediction_correct)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
+                Log.d(TAG, "synced: " + u.toString());
                 c.getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, u.toSyncableContentValues(c));
             }
             cursor.close();
         }
-        Log.d(TAG, "Synched total of # records: " + ids.size());
 
         database.beginTransaction();
 
@@ -459,7 +469,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
             database.endTransaction();
         }
 
-        synching = false;
+        syncing = false;
     }
 
     public class Prediction {

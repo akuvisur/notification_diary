@@ -148,7 +148,7 @@ public class NotificationAlarmManager extends Service {
 
         mute();
 
-        new ToastRunnable(this, "Notification Diary: Alarm Manager initiated", Toast.LENGTH_SHORT).run();
+        //new ToastRunnable(this, "Notification Diary: Alarm Manager initiated", Toast.LENGTH_SHORT).run();
 
         return START_STICKY;
     }

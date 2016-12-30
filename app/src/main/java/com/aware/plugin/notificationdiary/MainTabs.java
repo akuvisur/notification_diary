@@ -52,7 +52,6 @@ import com.akexorcist.roundcornerprogressbar.RoundCornerProgressBar;
 import com.aware.Applications;
 import com.aware.Aware;
 import com.aware.Aware_Preferences;
-import com.aware.Locations;
 import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
 import com.aware.plugin.notificationdiary.Providers.J48Classifiers;
@@ -160,7 +159,6 @@ public class MainTabs extends AppCompatActivity {
         if (AppManagement.isFirstLaunch(this)) {
             Intent tutorial = new Intent(this, TutorialActivity.class);
             startActivity(tutorial);
-            AppManagement.setFirstLaunch(this);
         }
         else {
             PackageManager pm = getPackageManager();
@@ -240,19 +238,9 @@ public class MainTabs extends AppCompatActivity {
                 Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
             }
             if (diaryViewGenerated && predictionViewGenerated) {
-                switch (mViewPager.getCurrentItem()) {
-                    case 0:
-                        refreshDiaryFragment(context);
-                        break;
-                    case 1:
-                        refreshPredictionView(context);
-                        break;
-                    default:
-                        refreshDiaryFragment(context);
-                        refreshPredictionView(context);
-                }
+                refreshDiaryFragment(context);
+                refreshPredictionView(context);
             }
-
         }
     }
 
@@ -393,7 +381,7 @@ public class MainTabs extends AppCompatActivity {
     private static boolean timing_inputted = false;
 
     private View emptyView;
-    private View curRootView;
+    private View curDiaryRootView;
     private RelativeLayout button_container;
     private LinearLayout skipall_layout;
 
@@ -534,10 +522,6 @@ public class MainTabs extends AppCompatActivity {
                 UnsyncedData helper = new UnsyncedData(context);
                 helper.updateEntry(context, (int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
 
-                // always sync skipped
-                UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
-                if (n.predicted_as_show > -1 && n.prediction_correct > -1 )getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
-
                 remainingNotifications.remove(0);
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
                 new Handler().postDelayed(new Runnable() {
@@ -558,22 +542,8 @@ public class MainTabs extends AppCompatActivity {
                 updated_values.put(UnsyncedData.Notifications_Table.content_importance, content_value.getRating());
                 updated_values.put(UnsyncedData.Notifications_Table.timing, timing_value.getRating());
                 UnsyncedData helper = new UnsyncedData(context);
+                Log.d(TAG, "updating entry with id : " + remainingNotifications.get(0).sqlite_row_id);
                 helper.updateEntry(context, (int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
-
-                // can sync if predictions not yet enabled
-                if (!AppManagement.predictionsEnabled(context)) {
-                    UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
-                    getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
-                }
-                // if predictions are enabled, only sync if user has verified that prediction was correct/incorrect
-                else {
-                    UnsyncedNotification n = helper.get(remainingNotifications.get(0).sqlite_row_id, true);
-                    if (n.prediction_correct > -1) {
-                        getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
-                    }
-                }
-
-                remainingNotifications.remove(0);
 
                 content_inputted = false;
                 timing_inputted = false;
@@ -582,6 +552,7 @@ public class MainTabs extends AppCompatActivity {
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
+                        remainingNotifications.remove(0);
                         refreshDiaryFragment(context);
                     }
                 }, 400);
@@ -602,7 +573,7 @@ public class MainTabs extends AppCompatActivity {
             }
         });
 
-        curRootView = rootView;
+        curDiaryRootView = rootView;
 
         refreshDiaryFragment(c);
 
@@ -647,34 +618,38 @@ public class MainTabs extends AppCompatActivity {
         new UnsyncedData(c).syncAlltoProvider(c);
 
         if (remainingNotifications.size() == 0) {
-            ((LinearLayout) curRootView.findViewById(R.id.diary_parent_view)).removeAllViews();
-            ((LinearLayout) curRootView.findViewById(R.id.diary_parent_view)).addView(emptyView);
-            curRootView.findViewById(R.id.diary_parent_view).invalidate();
+            ((LinearLayout) curDiaryRootView.findViewById(R.id.diary_parent_view)).removeAllViews();
+            ((LinearLayout) curDiaryRootView.findViewById(R.id.diary_parent_view)).addView(emptyView);
+            curDiaryRootView.findViewById(R.id.diary_parent_view).invalidate();
             return;
         }
-        content_inputted = false;
-        timing_inputted = false;
 
-        notification_app_name.setText(AppManagement.getApplicationNameFromPackage(context, remainingNotifications.get(0).application_package));
-        notification_message.setText(remainingNotifications.get(0).message);
-        notification_title.setText(remainingNotifications.get(0).title);
-        notification_timestamp.setText(AppManagement.getDate(context, remainingNotifications.get(0).seen_timestamp));
+        else {
+            content_inputted = false;
+            timing_inputted = false;
 
-        notification_app_name.invalidate();
-        notification_message.invalidate();
-        notification_title.invalidate();
-        notification_timestamp.invalidate();
+            notification_app_name.setText(AppManagement.getApplicationNameFromPackage(context, remainingNotifications.get(0).application_package));
+            notification_message.setText(remainingNotifications.get(0).message);
+            notification_title.setText(remainingNotifications.get(0).title);
+            notification_timestamp.setText(AppManagement.getDate(context, remainingNotifications.get(0).seen_timestamp));
 
-        content_value.setRating(0F);
-        timing_value.setRating(0F);
+            notification_app_name.invalidate();
+            notification_message.invalidate();
+            notification_title.invalidate();
+            notification_timestamp.invalidate();
 
-        content_unsure_button.setChecked(false);
-        timing_unsure_button.setChecked(false);
+            content_value.setRating(0F);
+            timing_value.setRating(0F);
 
-        next_button.setEnabled(content_inputted & timing_inputted);
-        next_button.invalidate();
+            content_unsure_button.setChecked(false);
+            timing_unsure_button.setChecked(false);
 
-        notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_in_right));
+            next_button.setEnabled(content_inputted & timing_inputted);
+            next_button.invalidate();
+
+            notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_in_right));
+            curDiaryRootView.findViewById(R.id.diary_parent_view).invalidate();
+        }
     }
 
     static List<UnsyncedNotification> remainingNotifications = new ArrayList<>();
@@ -699,14 +674,14 @@ public class MainTabs extends AppCompatActivity {
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
                 helper.updateEntry(c, (int) (n.sqlite_row_id), updated_values, false);
-                UnsyncedNotification syncupdate = helper.get(remainingNotifications.get(0).sqlite_row_id, false);
-                getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, syncupdate.toSyncableContentValues(context));
             }
         }
         helper.close();
         remainingNotifications.removeAll(removed);
         refreshDiaryFragment(c);
     }
+
+    private View curPredictionRootView;
 
     // disabled view
     Button enable_predictions;
@@ -803,7 +778,7 @@ public class MainTabs extends AppCompatActivity {
 
             modelInfo.close();
             predictionViewGenerated = true;
-
+            curPredictionRootView = rootView;
             return rootView;
         }
         else {
@@ -854,7 +829,7 @@ public class MainTabs extends AppCompatActivity {
             classifier_progress.setProgress(Math.min(100, (float) training_data_amount));
             classifier_progress_text.setText(training_data_amount + " / 100 labeled notifications");
             predictionViewGenerated = true;
-
+            curPredictionRootView = rootView;
             return rootView;
         }
 
@@ -884,6 +859,7 @@ public class MainTabs extends AppCompatActivity {
             );
 
             modelInfo.close();
+            curPredictionRootView.findViewById(R.id.prediction_parent_view_enabled).invalidate();
         }
         else {
             UnsyncedData helper = new UnsyncedData(c);
@@ -904,6 +880,7 @@ public class MainTabs extends AppCompatActivity {
 
             classifier_progress.setProgress(Math.min(100, (float) training_data_amount));
             classifier_progress_text.setText(training_data_amount + " / 100 labeled notifications");
+            curPredictionRootView.findViewById(R.id.prediction_parent_view_disabled).invalidate();
         }
     }
 

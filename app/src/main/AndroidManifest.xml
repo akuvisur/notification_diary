@@ -67,7 +67,8 @@
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="@string/title_activity_prediction"
             android:theme="@style/FullscreenTheme" />
-        <activity android:name=".Tutorial.TutorialActivity"></activity>
+        <activity android:name=".Tutorial.TutorialActivity" />
+
     </application>
 
 </manifest>

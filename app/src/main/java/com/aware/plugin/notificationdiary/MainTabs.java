@@ -185,6 +185,7 @@ public class MainTabs extends AppCompatActivity {
             }
 
             if (allPermissionsOk) {
+                AppManagement.setTutorialPage(this, 1);
                 Intent startAware = new Intent(this, Aware.class);
                 startService(startAware);
 

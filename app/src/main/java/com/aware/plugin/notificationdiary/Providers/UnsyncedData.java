@@ -195,8 +195,8 @@ public class UnsyncedData extends SQLiteOpenHelper {
 
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
-                UnsyncedData.Notifications_Table.seen + "=? AND " + UnsyncedData.Notifications_Table.labeled + "=? AND " + UnsyncedData.Notifications_Table.interaction_type + "=?",
-                new String[]{"1", "0", AppManagement.INTERACTION_TYPE_DISMISS},
+                UnsyncedData.Notifications_Table.labeled + "=? AND " + UnsyncedData.Notifications_Table.interaction_type + "=?",
+                new String[]{"0", AppManagement.INTERACTION_TYPE_DISMISS},
                 null, null,
                 UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
 
@@ -223,8 +223,8 @@ public class UnsyncedData extends SQLiteOpenHelper {
         int count = 0;
         Cursor cursor = database.query(DATABASE_NAME,
                 new String[]{UnsyncedData.Notifications_Table._ID},
-                UnsyncedData.Notifications_Table.seen + "=? AND " + Notifications_Table.labeled + "=? AND " + Notifications_Table.interaction_type + "=?",
-                new String[]{"1", "0", AppManagement.INTERACTION_TYPE_DISMISS},
+                Notifications_Table.labeled + "=? AND " + Notifications_Table.interaction_type + "=?",
+                new String[]{"0", AppManagement.INTERACTION_TYPE_DISMISS},
                 null, null,
                 UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
 

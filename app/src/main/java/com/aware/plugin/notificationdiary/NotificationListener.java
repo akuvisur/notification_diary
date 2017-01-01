@@ -62,6 +62,7 @@ import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotificatio
 import com.aware.plugin.notificationdiary.Providers.*;
 import com.aware.providers.Applications_Provider;
 import com.aware.providers.Battery_Provider;
+import com.aware.providers.Screen_Provider;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -152,7 +153,7 @@ public class NotificationListener extends NotificationListenerService {
 
             else if (intent.getAction().equals(Screen.ACTION_AWARE_SCREEN_OFF)) {
                 Log.d(TAG, "Screen: " + intent.getAction());
-                SCREEN_STATE = Screen.ACTION_AWARE_SCREEN_OFF;
+                SCREEN_STATE = intent.getAction();
                 ActivityApiClient.screenOff();
             }
 
@@ -443,7 +444,8 @@ public class NotificationListener extends NotificationListenerService {
         if (Build.VERSION.SDK_INT >= 21 && n.category != null) unsynced.notification_category = n.category;
         else unsynced.notification_category = UNKNOWN;
 
-        if (!SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF)) {unsynced.seen = true; unsynced.seen_timestamp = System.currentTimeMillis();}
+        if (getCurrentScreenMode() > 0) {unsynced.seen = true; unsynced.seen_timestamp = System.currentTimeMillis();}
+        else unsynced.seen = false;
 
         ContentValues c = new ContentValues();
         c.put(UnsyncedData.Notifications_Table.application_package, unsynced.application_package);
@@ -541,7 +543,6 @@ public class NotificationListener extends NotificationListenerService {
         }
     }
 
-
     private void checkNotificationInteraction(StatusBarNotification sbn, ArrayList<String> foreApps) {
         int identifier = UnsyncedNotification.getHashIdentifier(sbn.getId(), sbn.getPackageName());
 
@@ -559,17 +560,17 @@ public class NotificationListener extends NotificationListenerService {
         if (matchingNotification == null) {Log.d(TAG, "No match found");}
         else {
             Log.d(TAG, "Match found.");
-
+            if (getCurrentScreenMode() > 0) matchingNotification.seen = true;
             ContentValues updated_values = new ContentValues();
             matchingNotification.interaction_timestamp = System.currentTimeMillis();
 
             updated_values = new InteractionContext(context).addToValues(updated_values);
             updated_values.put(UnsyncedData.Notifications_Table.interaction_timestamp, System.currentTimeMillis());
             updated_values.put(UnsyncedData.Notifications_Table.foreground_application_package, interactionForegroundApplications.get(sbn));
+            updated_values.put(UnsyncedData.Notifications_Table.seen, matchingNotification.seen);
 
             // if automatically hidden
-            if (matchingNotification.predicted_as_show == 0)
-                matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_PREDICTION_HIDE;
+            if (matchingNotification.predicted_as_show == 0) matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_PREDICTION_HIDE;
 
             else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF) || !matchingNotification.seen) {
                 // system auto removed if screen on or notification was never seen
@@ -586,7 +587,7 @@ public class NotificationListener extends NotificationListenerService {
             }
 
             UnsyncedData helper = new UnsyncedData(context);
-            helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values, true);
+            helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values, false);
 
             interactionForegroundApplications.remove(sbn);
             // remove this from list
@@ -606,6 +607,19 @@ public class NotificationListener extends NotificationListenerService {
                 }
             }, 500);
         }
+    }
+
+    private int getCurrentScreenMode() {
+        int result = -1;
+        try {
+            Cursor screen_data = getContentResolver().query(Screen_Provider.Screen_Data.CONTENT_URI, null, null, null, "TIMESTAMP DESC LIMIT 1");
+            if (screen_data != null && screen_data.moveToFirst()) {
+                result = screen_data.getInt(screen_data.getColumnIndex(Screen_Provider.Screen_Data.SCREEN_STATUS));
+                screen_data.close();
+            }
+        }
+        catch (Exception e) {}
+        return result;
     }
 
     private Boolean shouldNotificationBeDisplayed(Context c1, StatusBarNotification sbn) {
@@ -948,7 +962,7 @@ public class NotificationListener extends NotificationListenerService {
     // index 0 = title, 1 = message
     public String[] loadTexts(@NonNull Context context, @NonNull Notification notification) {
         final Bundle extras = getExtras(notification);
-        String[] result = new String[]{};
+        String[] result = new String[]{"", ""};
         if (extras != null) result = loadFromExtras(notification, extras);
         if (TextUtils.isEmpty(result[0])
                 && TextUtils.isEmpty(result[1])) {
@@ -970,7 +984,12 @@ public class NotificationListener extends NotificationListenerService {
     }
 
     private String[] loadFromExtras(@NonNull Notification n, @NonNull Bundle extras) {
-        return new String[]{String.valueOf(extras.getCharSequence(Notification.EXTRA_TITLE)), String.valueOf(removeColorSpans(extras.getCharSequence(Notification.EXTRA_TEXT)))};
+        String title = String.valueOf(extras.getCharSequence(Notification.EXTRA_TITLE));
+        String message = String.valueOf(removeColorSpans(extras.getCharSequence(Notification.EXTRA_TEXT)));
+        if (title == null) title = "";
+        if (message == null) message = "";
+
+        return new String[]{title, message};
         /*
         titleBigText = extras.getCharSequence(Notification.EXTRA_TITLE_BIG);
 
@@ -1024,7 +1043,11 @@ public class NotificationListener extends NotificationListenerService {
         int length = textViews.size();
         CharSequence[] messages = new CharSequence[length];
         for (int i = 0; i < length; i++) messages[i] = textViews.get(i).getText();
-        return new String[]{String.valueOf(title.getText()), String.valueOf(doIt(messages))};
+        String title_string = String.valueOf(title);
+        String message = String.valueOf(doIt(messages));
+        if (title_string == null) title_string = "";
+        if (message == null) message = "";
+        return new String[]{title_string, message};
     }
 
     @Nullable

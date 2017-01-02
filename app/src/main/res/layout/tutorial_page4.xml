@@ -14,11 +14,11 @@
     <TextView
         android:text="This is the DIARY view and it shows information about each DISMISSED notification.\r\n
 \r\n
-        For each DISMISSED notification, please specify (1=bad, 5=good) the importance of the information, and the situation in which the notification was presented.\r\n
+For each DISMISSED notification, please specify (1=bad, 5=good) the importance of the information, and the situation in which the notification was presented.\r\n
 \r\n
-        If you are unsure or can not remember, please select UNSURE.\r\n
+If you are unsure or can not remember, please select UNSURE.\r\n
 \r\n
-        Click next to continue the tutorial or previous to return to previous page."
+Click next to continue the tutorial or previous to return to previous page."
         android:gravity="center_horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

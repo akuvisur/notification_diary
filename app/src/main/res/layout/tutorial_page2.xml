@@ -25,17 +25,30 @@
         android:id="@+id/tutorial_notification_access" />
 
     <TextView
-        android:text="
-        The application requires access to different permissions on your smartphone for full functionality.\r\n
+        android:text="The application requires access to different permissions on your smartphone for full functionality.\r\n
 \r\n
-        Click each button to set the permissions.\r\n
+Click each button to set the permissions.\r\n
 \r\n
-        The button will be grey and unclickable once the permission is already granted.\r\n
+The button will be grey and unclickable once the permission is already granted.\r\n
 \r\n
-        Click next to continue the tutorial or previous to return to previous page.\r\n
-        "
+Please also consider DISABLING battery optimization for Notification Diary as it will hinder the application's functionality.\r\n
+Click the button below, select 'All apps' and scroll down until you find Notification Diary, then DISABLE optimization.\r\n"
         android:gravity="center_horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView14" />
+
+    <Button
+        android:text="Battery Optimization"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tutorial_battery_saver" />
+
+    <TextView
+        android:text="Click next to continue the tutorial or previous to return to previous page.\r\n"
+        android:gravity="center_horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView14b" />
 </LinearLayout>

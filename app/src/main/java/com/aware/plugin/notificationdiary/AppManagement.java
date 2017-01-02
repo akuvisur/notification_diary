@@ -42,9 +42,7 @@ public class AppManagement {
     public static final String CONDITIONS_ACCEPTED = "CONDITIONS_ACCEPTED";
 
     public static final String SYNC_TIME = "SYNC_TIME";
-    // 5 nollaa perään
-    //public static final long SYNC_DELAY = 1800000;
-    public static final long SYNC_DELAY = 1000;
+    public static final long SYNC_DELAY = 300000;
 
     public static final String SOUND_CONTROL_ALLOWED = "SOUND_CONTROL_ALLOWED";
     public static final String SELF_NOTIFICATIONS_HIDDEN = "SELF_NOTIFICATIONS_HIDDEN";
@@ -215,7 +213,7 @@ public class AppManagement {
 
     public static boolean getOwnNotificationsHidden(Context c) {
         sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getBoolean(SELF_NOTIFICATIONS_HIDDEN, true);
+        return sp.getBoolean(SELF_NOTIFICATIONS_HIDDEN, false);
     }
 
     public static boolean isFirstLaunch(Context c) {

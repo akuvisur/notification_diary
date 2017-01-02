@@ -104,6 +104,7 @@ public class TutorialActivity extends AppCompatActivity {
     Button accessibility_access;
     Button notification_access;
     Button accept_conditions;
+    Button battery_optimisation;
     boolean permissions_ok;
     boolean accessibility_ok;
     boolean notification_ok;
@@ -125,6 +126,7 @@ public class TutorialActivity extends AppCompatActivity {
                 permissions = (Button) content.findViewById(R.id.tutorial_permissions);
                 accessibility_access = (Button) content.findViewById(R.id.tutorial_accessibility);
                 notification_access = (Button) content.findViewById(R.id.tutorial_notification_access);
+                battery_optimisation = (Button) content.findViewById(R.id.tutorial_battery_saver);
                 permissions.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
@@ -143,6 +145,17 @@ public class TutorialActivity extends AppCompatActivity {
                         notificationClick(c);
                     }
                 });
+                if (android.os.Build.VERSION.SDK_INT >= 23) battery_optimisation.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        Intent powerUsageIntent = new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                        startActivity(powerUsageIntent);
+                    }
+                });
+                else {
+                    battery_optimisation.setEnabled(false);
+                    battery_optimisation.setText("Too old android version");
+                }
                 permissions_ok = checkPermissions(c);
                 accessibility_ok = checkAccessibility(c);
                 notification_ok = checkNotification(c);
@@ -209,9 +222,9 @@ public class TutorialActivity extends AppCompatActivity {
             next.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                finish();
                 AppManagement.setTutorialPage(context, 1);
                 AppManagement.setFirstLaunch(context);
-                finish();
                 }
             });
         }

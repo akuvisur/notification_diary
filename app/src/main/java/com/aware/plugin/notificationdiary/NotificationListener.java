@@ -90,6 +90,8 @@ public class NotificationListener extends NotificationListenerService {
 
     private Context context;
 
+    private UnsyncedData helper = null;
+
     String FOREGROUND_APP_NAME = "";
     String FOREGROUND_APP_PACKAGE = "";
 
@@ -161,15 +163,15 @@ public class NotificationListener extends NotificationListenerService {
                 Log.d(TAG, "Screen: " + intent.getAction());
                 SCREEN_STATE = Screen.ACTION_AWARE_SCREEN_ON;
                 ActivityApiClient.screenOn();
+                initDbConnection();
                 for (UnsyncedNotification n : arrivedNotifications) {
                     if (!n.seen) {
                         n.seen = true;
                         n.seen_timestamp = System.currentTimeMillis();
-                        UnsyncedData helper = new UnsyncedData(context);
                         ContentValues updated_values = new ContentValues();
                         updated_values.put(UnsyncedData.Notifications_Table.seen_timestamp, n.seen_timestamp);
                         updated_values.put(UnsyncedData.Notifications_Table.seen, n.seen);
-                        helper.updateEntry(c, (int) n.sqlite_row_id, updated_values, true);
+                        helper.updateEntry(c, (int) n.sqlite_row_id, updated_values);
                         Log.d(TAG, "seen: "  + n.title + " / " + n.message);
                     }
                 }
@@ -177,7 +179,6 @@ public class NotificationListener extends NotificationListenerService {
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            UnsyncedData helper = new UnsyncedData(context);
                             ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c);
                             if (predictions.size() % 5 == 0 && predictions.size() > 9) {
                                 NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -277,8 +278,20 @@ public class NotificationListener extends NotificationListenerService {
                     Log.d(TAG, "CURRENT LOCATION: " + LOCATION);
                 }
             }
-
+            if (helper == null) closeDbConnection();
         }
+    }
+
+    private void closeDbConnection() {
+        if (helper != null) {
+            helper.close();
+            helper = null;
+        }
+    }
+
+    private void initDbConnection() {
+        closeDbConnection();
+        helper = new UnsyncedData(this);
     }
 
     public NotificationListener() {
@@ -388,7 +401,8 @@ public class NotificationListener extends NotificationListenerService {
     J48 tree;
     public void onNotificationPosted(StatusBarNotification sbn) {
         super.onNotificationPosted(sbn);
-
+        initDbConnection();
+        Log.d(TAG, "New notification posted: " + sbn.getPackageName() + " : " + sbn.getId());
         // always show by default
         int showNotification = -1;
         boolean replacement = false;
@@ -408,29 +422,31 @@ public class NotificationListener extends NotificationListenerService {
                 showNotification = 1;
             }
         }
-        // replace existing notifications from same apps to prevent "spamming" the user
-        // also, these multiple notifications are not interacted with as they share the same
-        // notification in the tray
-        UnsyncedNotification replacedNotification = null;
-        for (UnsyncedNotification n : arrivedNotifications) {
-            if (n.application_package.equals(sbn.getPackageName()) && n.notification_id == sbn.getId()) {
-                ContentValues replace = new ContentValues();
-                replace.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_REPLACE);
-                // these are the "final" context values for this notification
-                replace = new InteractionContext(context).addToValues(replace);
-                replace.put(UnsyncedData.Notifications_Table.notification_id, n.notification_id);
-                UnsyncedData helper = new UnsyncedData(context);
-                helper.updateEntry(context, (int) n.sqlite_row_id, replace, true);
-                replacedNotification = n;
-                replacement = true;
-                Log.d(TAG, "replacement");
-            }
-        }
-        if (replacedNotification != null) {arrivedNotifications.remove(replacedNotification);}
 
         Notification n = sbn.getNotification();
 
         String[] contents = loadTexts(this, n);
+
+        // replace existing notifications from same apps to prevent "spamming" the user
+        // also, these multiple notifications are not interacted with as they share the same
+        // notification in the tray
+        UnsyncedNotification replacedNotification = null;
+        for (UnsyncedNotification iterated_n : arrivedNotifications) {
+            if (iterated_n.application_package.equals(sbn.getPackageName())
+                    && iterated_n.title.equals(contents[0])) {
+                ContentValues replace = new ContentValues();
+                replace.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_REPLACE);
+                // these are the "final" context values for this notification
+                replace = new InteractionContext(context).addToValues(replace);
+                replace.put(UnsyncedData.Notifications_Table.notification_id, iterated_n.notification_id);
+                helper.updateEntry(context, (int) iterated_n.sqlite_row_id, replace);
+                replacedNotification = iterated_n;
+                replacement = true;
+                Log.d(TAG, "replacement");
+            }
+        }
+
+        if (replacedNotification != null) {arrivedNotifications.remove(replacedNotification);}
 
         UnsyncedNotification unsynced = new UnsyncedNotification();
         unsynced.generate_timestamp = System.currentTimeMillis();
@@ -456,12 +472,9 @@ public class NotificationListener extends NotificationListenerService {
         c.put(UnsyncedData.Notifications_Table.seen_timestamp, unsynced.seen_timestamp);
         c.put(UnsyncedData.Notifications_Table.seen, unsynced.seen);
         c.put(UnsyncedData.Notifications_Table.predicted_as_show, showNotification);
-
         // add "final" context values if a replaced notification
         if (replacement) c = new InteractionContext(context).addToValues(c);
 
-        Log.d(TAG, "inserting" + c.toString());
-        UnsyncedData helper = new UnsyncedData(context);
         unsynced.sqlite_row_id = helper.insertRecord(context, c);
 
         arrivedNotifications.add(unsynced);
@@ -470,8 +483,7 @@ public class NotificationListener extends NotificationListenerService {
         // if the notification if any of the notifications posted by this app, dont try to
         // repost the reminder notification
         if (!sbn.getPackageName().equals(this.getPackageName())) {
-            helper = new UnsyncedData(context);
-            ArrayList unlabeled = helper.getUnlabeledNotifications(false);
+            ArrayList unlabeled = helper.getUnlabeledNotifications();
             if ((unlabeled.size() > 0) & (unlabeled.size() % AppManagement.getRandomNumberInRange(8, 12)) == 0) {
                 NotificationManager notificationManager = (NotificationManager)
                         getSystemService(NOTIFICATION_SERVICE);
@@ -486,12 +498,12 @@ public class NotificationListener extends NotificationListenerService {
                         .build();
                 notificationManager.notify(NOTIFICATION_UNLABELED_NOTIFICATIONS, launch_notification);
             }
-            helper.close();
         }
         if (AppManagement.predictionsEnabled(context) && !replacement && showNotification == 1) {
             Log.d(TAG, "call send cue");
             sendNotificationCue(sbn);
         }
+        closeDbConnection();
     }
 
     ArrayList<String> stopWordsEng = null;
@@ -512,6 +524,7 @@ public class NotificationListener extends NotificationListenerService {
         Log.d(TAG, "*** NOTIFICATION REMOVED");
         Log.d(TAG, "id : " + sbn.getId());
         String packageName = sbn.getPackageName();
+        new UnsyncedData(context).syncAlltoProvider(context);
 
         if (!AppManagement.BLACKLIST.contains(packageName)) new Handler(Looper.getMainLooper()).postDelayed(new StatusBarNotificationCheckedRunnable(sbn, System.currentTimeMillis()), AppManagement.INTERACTION_CHECK_DELAY);
         else Log.d(TAG, "Blacklisted app");
@@ -545,9 +558,11 @@ public class NotificationListener extends NotificationListenerService {
 
     private void checkNotificationInteraction(StatusBarNotification sbn, ArrayList<String> foreApps) {
         int identifier = UnsyncedNotification.getHashIdentifier(sbn.getId(), sbn.getPackageName());
+        initDbConnection();
 
         String[] removed_notification_contents = loadTexts(this, sbn.getNotification());
         Log.d(TAG, "contents: " + removed_notification_contents[0] + " " + removed_notification_contents[1]);
+
         UnsyncedNotification matchingNotification = null;
         for (UnsyncedNotification n : arrivedNotifications) {
             if ((identifier == n.getHashIdentifier()) &&
@@ -586,8 +601,7 @@ public class NotificationListener extends NotificationListenerService {
                 updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_DISMISS);
             }
 
-            UnsyncedData helper = new UnsyncedData(context);
-            helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values, false);
+            helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values);
 
             interactionForegroundApplications.remove(sbn);
             // remove this from list
@@ -597,13 +611,14 @@ public class NotificationListener extends NotificationListenerService {
             new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    UnsyncedData h = new UnsyncedData(context);
+                    initDbConnection();
                     if (!AppManagement.predictionsEnabled(context) && !match.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
-                        getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, h.get(match.sqlite_row_id, true).toSyncableContentValues(context));
+                        getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, helper.get(match.sqlite_row_id).toSyncableContentValues(context));
                     }
-                    int count = (h.countPredictions(context) + h.countUnlabeledNotifications(true));
+                    int count = (helper.countPredictions(context) + helper.countUnlabeledNotifications());
                     if (count > 0) BadgeUtils.setBadge(context, count);
                     else BadgeUtils.clearBadge(context);
+                    closeDbConnection();
                 }
             }, 500);
         }
@@ -860,8 +875,9 @@ public class NotificationListener extends NotificationListenerService {
             );
         }
 
-        UnsyncedData helper = new UnsyncedData(context);
-        ArrayList<UnsyncedNotification> notifications = helper.getUnlabeledNotifications(false);
+        initDbConnection();
+
+        ArrayList<UnsyncedNotification> notifications = helper.getUnlabeledNotifications();
         ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c1);
 
         if (predictions.size() % 5 == 0 && predictions.size() > 9) {
@@ -901,7 +917,6 @@ public class NotificationListener extends NotificationListenerService {
         evaluated_notification.add(current_notification);
         evaluated_notification.setClassIndex(0);
 
-        helper.close();
         wordBins.close();
 
         try {
@@ -912,7 +927,7 @@ public class NotificationListener extends NotificationListenerService {
             Log.d(TAG, "could not classify");
             e.printStackTrace();
         }
-
+        closeDbConnection();
         return true;
     }
 

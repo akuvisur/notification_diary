@@ -14,9 +14,9 @@
     <TextView
         android:text="Once the predictions are enabled, you can then view and verify accuracy of each prediction (SHOWN or HIDDEN)\r\n
 \r\n
-        This information will also be used when generation new prediction models.\r\n
+This information will also be used when generation new prediction models.\r\n
 \r\n
-        Click next to continue the tutorial or previous to return to previous page."
+Click next to continue the tutorial or previous to return to previous page."
         android:gravity="center_horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

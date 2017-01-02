@@ -10,9 +10,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.media.RingtoneManager;
 import android.os.Handler;
-import android.provider.SyncStateContract;
+import android.os.Looper;
+import android.provider.*;
+import android.provider.Settings;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
@@ -86,6 +89,18 @@ public class MainTabs extends AppCompatActivity {
     private SectionsPagerAdapter mSectionsPagerAdapter;
 
     private Context context;
+
+    private UnsyncedData helper = null;
+    private void initDbConnection() {
+        if (helper == null) helper = new UnsyncedData(this);
+    }
+
+    private void closeDbConnection() {
+        if (helper != null) {
+            helper.close();
+            helper = null;
+        }
+    }
 
     private static ArrayList<String> REQUIRED_PERMISSIONS = new ArrayList<>();
 
@@ -260,10 +275,11 @@ public class MainTabs extends AppCompatActivity {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                UnsyncedData ud = new UnsyncedData(context);
-                int count = (ud.countPredictions(context) + ud.countUnlabeledNotifications(true));
+                initDbConnection();
+                int count = (helper.countPredictions(context) + helper.countUnlabeledNotifications());
                 if (count > 0) BadgeUtils.setBadge(context, count);
                 else BadgeUtils.clearBadge(context);
+                closeDbConnection();
             }
         }, 500);
     }
@@ -401,42 +417,8 @@ public class MainTabs extends AppCompatActivity {
 
     public View generateDiaryView(Context c, final LayoutInflater inflater, final ViewGroup container) {
         Log.d(TAG, "Generating new diary view");
+        initDbConnection();
 
-        remainingNotifications = fetchRemainingNotifications(c);
-        /*
-        emptyView = inflater.inflate(R.layout.diary_view_empty, container, false);
-        if (remainingNotifications.size() == 0) {
-            if (DEBUG) {
-                Button b = new Button(context);
-                b.setText("POST NOTIFICATION");
-                b.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-
-                        new Handler().postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                NotificationCompat.Builder builder = (NotificationCompat.Builder) new NotificationCompat.Builder(context)
-                                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                                        .setContentTitle("a"+System.currentTimeMillis())
-                                        .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
-                                        .setContentText("asdf!" + System.currentTimeMillis());
-                                NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-                                notificationManager.notify((int) (System.currentTimeMillis() % 12345), builder.build());
-                            }
-                        },2000);
-
-                        Intent startMain = new Intent(Intent.ACTION_MAIN);
-                        startMain.addCategory(Intent.CATEGORY_HOME);
-                        startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        context.startActivity(startMain);
-                    }
-                });
-                ((LinearLayout) emptyView.findViewById(R.id.header)).addView(b);
-            }
-            return emptyView;
-        }
-        */
         final View rootView = inflater.inflate(R.layout.diary_view, container, false);
 
         diary_content_layout = (LinearLayout) rootView.findViewById(R.id.diary_content_view);
@@ -450,6 +432,37 @@ public class MainTabs extends AppCompatActivity {
         notification_message= (TextView) rootView.findViewById(R.id.diary_contents);
         notification_title = (TextView) rootView.findViewById(R.id.diary_title);
         notification_timestamp = (TextView) rootView.findViewById(R.id.diary_timestamp);
+
+        if (DEBUG) {
+            diary_content_layout.setVisibility(View.VISIBLE);
+            Button b = new Button(context);
+            b.setText("POST NOTIFICATION");
+            b.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            NotificationCompat.Builder builder = (NotificationCompat.Builder) new NotificationCompat.Builder(context)
+                                    .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                                    .setContentTitle("a"+System.currentTimeMillis())
+                                    .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                                    .setContentText("asdf!" + System.currentTimeMillis());
+                            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+                            notificationManager.notify((int) (System.currentTimeMillis() % 12345), builder.build());
+                        }
+                    },2000);
+
+                    Intent startMain = new Intent(Intent.ACTION_MAIN);
+                    startMain.addCategory(Intent.CATEGORY_HOME);
+                    startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(startMain);
+                }
+            });
+
+            diary_content_layout.addView(b);
+        }
 
         skipall_layout = (LinearLayout) rootView.findViewById(R.id.diary_skip_all_layout);
         button_container = (RelativeLayout) rootView.findViewById(R.id.diary_button_container);
@@ -535,10 +548,10 @@ public class MainTabs extends AppCompatActivity {
         skip_button.setOnClickListener(new ContextButtonListener(c) {
             @Override
             public void onClick(View view) {
+                initDbConnection();
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
-                UnsyncedData helper = new UnsyncedData(context);
-                helper.updateEntry(context, (int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
+                helper.updateEntry(context, (int) remainingNotifications.get(0).sqlite_row_id, updated_values);
 
                 remainingNotifications.remove(0);
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_out));
@@ -546,6 +559,7 @@ public class MainTabs extends AppCompatActivity {
                     @Override
                     public void run() {
                         refreshDiaryFragment(context);
+                        closeDbConnection();
                     }
                 }, 400);
             }
@@ -555,13 +569,13 @@ public class MainTabs extends AppCompatActivity {
         next_button.setOnClickListener(new ContextButtonListener(c) {
             @Override
             public void onClick(View view) {
+                initDbConnection();
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, 1);
                 updated_values.put(UnsyncedData.Notifications_Table.content_importance, content_value.getRating());
                 updated_values.put(UnsyncedData.Notifications_Table.timing, timing_value.getRating());
-                UnsyncedData helper = new UnsyncedData(context);
                 Log.d(TAG, "updating entry with id : " + remainingNotifications.get(0).sqlite_row_id);
-                helper.updateEntry(context, (int) remainingNotifications.get(0).sqlite_row_id, updated_values, false);
+                helper.updateEntry(context, (int) remainingNotifications.get(0).sqlite_row_id, updated_values);
 
                 content_inputted = false;
                 timing_inputted = false;
@@ -572,6 +586,7 @@ public class MainTabs extends AppCompatActivity {
                     public void run() {
                         remainingNotifications.remove(0);
                         refreshDiaryFragment(context);
+                        closeDbConnection();
                     }
                 }, 400);
             }
@@ -587,7 +602,7 @@ public class MainTabs extends AppCompatActivity {
                     public void run() {
                         skipAll(remainingNotifications.get(0).application_package, context);
                     }
-                },400);
+                },200);
             }
         });
 
@@ -629,22 +644,19 @@ public class MainTabs extends AppCompatActivity {
 
     private void refreshDiaryFragment(Context c) {
         if (!diaryViewGenerated) return;
-        Log.d(TAG, "refresh diary");
-        remainingNotifications = fetchRemainingNotifications(c);
+        initDbConnection();
 
         updateRemainingNotifications(c);
 
-        new UnsyncedData(c).syncAlltoProvider(c);
-        /*
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(context)) > AppManagement.SYNC_DELAY) new UnsyncedData(context).syncAlltoProvider(context);
+            }
+        },5000);
+
         if (remainingNotifications.size() == 0) {
-            ((LinearLayout) curDiaryRootView.findViewById(R.id.diary_parent_view)).removeAllViews();
-            ((LinearLayout) curDiaryRootView.findViewById(R.id.diary_parent_view)).addView(emptyView);
-            curDiaryRootView.findViewById(R.id.diary_parent_view).invalidate();
-            return;
-        }
-        */
-        if (remainingNotifications.size() == 0) {
-            diary_content_layout.setVisibility(View.INVISIBLE);
+            if (!DEBUG) diary_content_layout.setVisibility(View.INVISIBLE);
         }
         else {
             diary_content_layout.setVisibility(View.VISIBLE);
@@ -674,6 +686,7 @@ public class MainTabs extends AppCompatActivity {
             notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_in_right));
             curDiaryRootView.findViewById(R.id.diary_parent_view).invalidate();
         }
+        closeDbConnection();
     }
 
     static List<UnsyncedNotification> remainingNotifications = new ArrayList<>();
@@ -685,24 +698,23 @@ public class MainTabs extends AppCompatActivity {
     }
 
     private List<UnsyncedNotification> fetchRemainingNotifications(Context c) {
-        UnsyncedData helper = new UnsyncedData(c);
-        return helper.getUnlabeledNotifications(true);
+        return helper.getUnlabeledNotifications();
     }
 
     private void skipAll(String package_name, Context c) {
+        initDbConnection();
         ArrayList<UnsyncedNotification> removed = new ArrayList<>();
-        UnsyncedData helper = new UnsyncedData(c);
         for (UnsyncedNotification n : remainingNotifications) {
             if (n.application_package.equals(package_name)) {
                 removed.add(n);
                 ContentValues updated_values = new ContentValues();
                 updated_values.put(UnsyncedData.Notifications_Table.labeled, -1);
-                helper.updateEntry(c, (int) (n.sqlite_row_id), updated_values, false);
+                helper.updateEntry(c, (int) (n.sqlite_row_id), updated_values);
             }
         }
-        helper.close();
         remainingNotifications.removeAll(removed);
         refreshDiaryFragment(c);
+        closeDbConnection();
     }
 
     private View curPredictionRootView;
@@ -806,6 +818,7 @@ public class MainTabs extends AppCompatActivity {
             return rootView;
         }
         else {
+            initDbConnection();
             final View rootView = inflater.inflate(R.layout.prediction_view_disabled, container, false);
 
             enable_predictions = (Button) rootView.findViewById(R.id.predictions_enable);
@@ -831,7 +844,6 @@ public class MainTabs extends AppCompatActivity {
                     }, 500);
                 }
             });
-            UnsyncedData helper = new UnsyncedData(c);
             int training_data_amount = helper.getNumOfTrainingData();
             if (training_data_amount >= 100) enable_predictions.setEnabled(true);
             if (DEBUG) enable_predictions.setEnabled(true);
@@ -854,6 +866,7 @@ public class MainTabs extends AppCompatActivity {
             classifier_progress_text.setText(training_data_amount + " / 100 labeled notifications");
             predictionViewGenerated = true;
             curPredictionRootView = rootView;
+            closeDbConnection();
             return rootView;
         }
 
@@ -886,7 +899,7 @@ public class MainTabs extends AppCompatActivity {
             curPredictionRootView.findViewById(R.id.prediction_parent_view_enabled).invalidate();
         }
         else {
-            UnsyncedData helper = new UnsyncedData(c);
+            initDbConnection();
             int training_data_amount = helper.getNumOfTrainingData();
             if (training_data_amount >= 100) enable_predictions.setEnabled(true);
             if (DEBUG) enable_predictions.setEnabled(true);
@@ -905,6 +918,7 @@ public class MainTabs extends AppCompatActivity {
             classifier_progress.setProgress(Math.min(100, (float) training_data_amount));
             classifier_progress_text.setText(training_data_amount + " / 100 labeled notifications");
             curPredictionRootView.findViewById(R.id.prediction_parent_view_disabled).invalidate();
+            closeDbConnection();
         }
     }
 

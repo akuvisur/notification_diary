@@ -15,7 +15,7 @@
         android:gravity="center_horizontal"
         android:text="Notifications are considered CLICKED if you use them to launch the application.\r\n
 \r\n
-        If you only interact with the noticiation (e.g. view or reply to messages), the notification will not be considered CLICKED."
+If you only interact with the noticiation (e.g. view or reply to messages), the notification will not be considered CLICKED."
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView17" />
@@ -30,7 +30,7 @@
         android:gravity="center_horizontal"
         android:text="A notification is considered DISMISSED if you SWIPE it away from the notification tray.\r\n
 \r\n
-        Click next to continue the tutorial or previous to return to previous page."
+Click next to continue the tutorial or previous to return to previous page."
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView18" />

@@ -32,6 +32,8 @@ import static android.content.Context.ALARM_SERVICE;
 public class AppManagement {
     private static final String TAG = "AppManagement";
 
+    public static int PREF_FREQUENCY_WATCHDOG = 15 * 60;
+
     public static final String SHARED_PREFS = "com.aware.plugin.notificationdiary";
     public static final String TEST_COUNT = "TEST_COUNT";
     public static final String NUM_CLUSTERS = "OPTIMAL_NUM_CLUSTERS";

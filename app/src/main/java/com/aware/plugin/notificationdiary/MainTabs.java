@@ -272,16 +272,11 @@ public class MainTabs extends AppCompatActivity {
         }
         catch (Exception e) {e.printStackTrace();}
 
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                initDbConnection();
-                int count = (helper.countPredictions(context) + helper.countUnlabeledNotifications());
-                if (count > 0) BadgeUtils.setBadge(context, count);
-                else BadgeUtils.clearBadge(context);
-                closeDbConnection();
-            }
-        }, 500);
+        initDbConnection();
+        int count = (helper.countPredictions(context) + helper.countUnlabeledNotifications());
+        if (count > 0) BadgeUtils.setBadge(context, count);
+        else BadgeUtils.clearBadge(context);
+        closeDbConnection();
     }
 
     @Override
@@ -559,9 +554,9 @@ public class MainTabs extends AppCompatActivity {
                     @Override
                     public void run() {
                         refreshDiaryFragment(context);
-                        closeDbConnection();
                     }
                 }, 400);
+                closeDbConnection();
             }
         });
 
@@ -586,9 +581,9 @@ public class MainTabs extends AppCompatActivity {
                     public void run() {
                         remainingNotifications.remove(0);
                         refreshDiaryFragment(context);
-                        closeDbConnection();
                     }
                 }, 400);
+                closeDbConnection();
             }
         });
 
@@ -648,12 +643,7 @@ public class MainTabs extends AppCompatActivity {
 
         updateRemainingNotifications(c);
 
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(context)) > AppManagement.SYNC_DELAY) new UnsyncedData(context).syncAlltoProvider(context);
-            }
-        },5000);
+        if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(context)) > AppManagement.SYNC_DELAY) new UnsyncedData(context).syncAlltoProvider(context);
 
         if (remainingNotifications.size() == 0) {
             if (!DEBUG) diary_content_layout.setVisibility(View.INVISIBLE);
@@ -755,22 +745,17 @@ public class MainTabs extends AppCompatActivity {
             refresh_model.setOnClickListener(new ContextButtonListener(c) {
                 @Override
                 public void onClick(View v) {
-                    new Handler().postDelayed(new ContextRunnable(c) {
-                        @Override
-                        public void run() {
-                            refresh_model.setEnabled(false);
-                            progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c, refresh_model);
-                            IntentFilter filt = new IntentFilter();
-                            filt.addAction(ClassifierProgressReceiver.ACTION);
-                            c.registerReceiver(progressReceiver, filt);
+                    refresh_model.setEnabled(false);
+                    progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c, refresh_model);
+                    IntentFilter filt = new IntentFilter();
+                    filt.addAction(ClassifierProgressReceiver.ACTION);
+                    c.registerReceiver(progressReceiver, filt);
 
-                            classifier_progress.setVisibility(View.VISIBLE);
-                            classifier_progress_text.setVisibility(View.VISIBLE);
+                    classifier_progress.setVisibility(View.VISIBLE);
+                    classifier_progress_text.setVisibility(View.VISIBLE);
 
-                            Intent srvIntent = new Intent(c, ContentAnalysisService.class);
-                            c.startService(srvIntent);
-                        }
-                    }, 500);
+                    Intent srvIntent = new Intent(c, ContentAnalysisService.class);
+                    c.startService(srvIntent);
                 }
             });
 
@@ -825,23 +810,18 @@ public class MainTabs extends AppCompatActivity {
             enable_predictions.setOnClickListener(new ContextButtonListener(c) {
                 @Override
                 public void onClick(View v) {
-                    new Handler().postDelayed(new ContextRunnable(c) {
-                        @Override
-                        public void run() {
-                            progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c, refresh_model);
-                            IntentFilter filt = new IntentFilter();
-                            filt.addAction(ClassifierProgressReceiver.ACTION);
-                            c.registerReceiver(progressReceiver, filt);
+                    progressReceiver = new ClassifierProgressReceiver(classifier_progress, classifier_progress_text, c, refresh_model);
+                    IntentFilter filt = new IntentFilter();
+                    filt.addAction(ClassifierProgressReceiver.ACTION);
+                    c.registerReceiver(progressReceiver, filt);
 
-                            classifier_progress.setVisibility(View.VISIBLE);
-                            classifier_progress_text.setVisibility(View.VISIBLE);
+                    classifier_progress.setVisibility(View.VISIBLE);
+                    classifier_progress_text.setVisibility(View.VISIBLE);
 
-                            Intent srvIntent = new Intent(c, ContentAnalysisService.class);
-                            c.startService(srvIntent);
+                    Intent srvIntent = new Intent(c, ContentAnalysisService.class);
+                    c.startService(srvIntent);
 
-                            AppManagement.startDailyModel(c);
-                        }
-                    }, 500);
+                    AppManagement.startDailyModel(c);
                 }
             });
             int training_data_amount = helper.getNumOfTrainingData();

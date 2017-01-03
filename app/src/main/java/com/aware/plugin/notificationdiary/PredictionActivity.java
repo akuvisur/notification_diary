@@ -36,15 +36,17 @@ public class PredictionActivity extends AppCompatActivity {
 
     private Context context;
     private UnsyncedData helper = null;
-    private void initDbConnection() {
-        if (helper == null) helper = new UnsyncedData(this);
-    }
 
     private void closeDbConnection() {
-        if (helper == null) {
+        if (helper != null) {
             helper.close();
             helper = null;
         }
+    }
+
+    private void initDbConnection() {
+        closeDbConnection();
+        helper = new UnsyncedData(this);
     }
 
     @Override

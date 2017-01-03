@@ -13,18 +13,11 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.location.Location;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
-import android.media.RingtoneManager;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.SystemClock;
-import android.os.Vibrator;
-import android.provider.MediaStore;
 import android.provider.Settings;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
@@ -40,7 +33,6 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.TextAppearanceSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.SoundEffectConstants;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RemoteViews;
@@ -86,10 +78,15 @@ import static com.aware.plugin.notificationdiary.NotificationAlarmManager.NOTIFI
 public class NotificationListener extends NotificationListenerService {
     static final String TAG = "NotificationListener";
 
+    private static final String ACTION_KEEP_ALIVE = "ACTION_KEEP_ALIVE";
+
     public static boolean connected = false;
 
     private Context context;
 
+    private static AlarmManager alarmManager = null;
+    private static PendingIntent repeatingIntent = null;
+    private static Intent statusMonitor = null;
     private UnsyncedData helper = null;
 
     String FOREGROUND_APP_NAME = "";
@@ -176,25 +173,20 @@ public class NotificationListener extends NotificationListenerService {
                     }
                 }
                 if (AppManagement.predictionsEnabled(context)) {
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c);
-                            if (predictions.size() % 5 == 0 && predictions.size() > 9) {
-                                NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-                                Intent launchIntent = new Intent(context, PredictionActivity.class);
-                                PendingIntent pi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), launchIntent, FLAG_CANCEL_CURRENT);
-                                Notification launch_notification = new Notification.Builder(context)
-                                        .setContentTitle(predictions.size() + " unverified predictions")
-                                        .setContentText("Click to launch Notification Diary")
-                                        .setSmallIcon(R.mipmap.ic_launcher)
-                                        .setContentIntent(pi)
-                                        .setAutoCancel(true)
-                                        .build();
-                                notificationManager.notify(NOTIFICATION_UNVERIFIED_PREDICTIONS, launch_notification);
-                            }
-                        }
-                    }, 5000);
+                    ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c);
+                    if (predictions.size() % 5 == 0 && predictions.size() > 9) {
+                        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                        Intent launchIntent = new Intent(context, PredictionActivity.class);
+                        PendingIntent pi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), launchIntent, FLAG_CANCEL_CURRENT);
+                        Notification launch_notification = new Notification.Builder(context)
+                                .setContentTitle(predictions.size() + " unverified predictions")
+                                .setContentText("Click to launch Notification Diary")
+                                .setSmallIcon(R.mipmap.ic_launcher)
+                                .setContentIntent(pi)
+                                .setAutoCancel(true)
+                                .build();
+                        notificationManager.notify(NOTIFICATION_UNVERIFIED_PREDICTIONS, launch_notification);
+                    }
                 }
             }
 
@@ -306,14 +298,40 @@ public class NotificationListener extends NotificationListenerService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int something) {
+        super.onStartCommand(intent, flags, something);
         context = this;
+
+        if (statusMonitor == null) { //not set yet
+            statusMonitor = new Intent(this, NotificationListener.class);
+            statusMonitor.setAction(ACTION_KEEP_ALIVE);
+            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, statusMonitor, PendingIntent.FLAG_UPDATE_CURRENT);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            } else {
+                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            }
+        } else { //already set, schedule the next one if API23+. If < API23, it's a repeating alarm, so no need to set it again.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_KEEP_ALIVE))) {
+                //set the alarm again to the future for API 23, works even if under Doze
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            }
+        }
 
         return START_STICKY;
     }
 
     @Override
     public void onCreate() {
-
+        super.onCreate();
+        alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         String notificationListenerString = Settings.Secure.getString(this.getContentResolver(),"enabled_notification_listeners");
         //Check notifications access permission
         if (notificationListenerString == null || !notificationListenerString.contains(getPackageName()))
@@ -364,6 +382,7 @@ public class NotificationListener extends NotificationListenerService {
 
     @Override
     public void onDestroy() {
+        if (repeatingIntent != null) alarmManager.cancel(repeatingIntent);
         unregisterReceiver(ar);
     }
 
@@ -526,7 +545,9 @@ public class NotificationListener extends NotificationListenerService {
         String packageName = sbn.getPackageName();
         new UnsyncedData(context).syncAlltoProvider(context);
 
-        if (!AppManagement.BLACKLIST.contains(packageName)) new Handler(Looper.getMainLooper()).postDelayed(new StatusBarNotificationCheckedRunnable(sbn, System.currentTimeMillis()), AppManagement.INTERACTION_CHECK_DELAY);
+        if (!AppManagement.BLACKLIST.contains(packageName)) {
+            new Thread(new StatusBarNotificationCheckedRunnable(sbn, System.currentTimeMillis())).start();
+        }
         else Log.d(TAG, "Blacklisted app");
 
         interactionForegroundApplications.put(sbn, FOREGROUND_APP_PACKAGE);
@@ -544,15 +565,20 @@ public class NotificationListener extends NotificationListenerService {
 
         @Override
         public void run() {
-            Cursor apps_run = getContentResolver().query(Applications_Provider.Applications_Foreground.CONTENT_URI, null, "TIMESTAMP > " + timestamp, null, null);
-            ArrayList<String> runApps = new ArrayList<>();
-            if (apps_run != null ) {
-                while (apps_run.moveToNext()) {
-                    runApps.add(apps_run.getString(apps_run.getColumnIndex(Applications_Provider.Applications_Foreground.PACKAGE_NAME)));
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    Cursor apps_run = getContentResolver().query(Applications_Provider.Applications_Foreground.CONTENT_URI, null, "TIMESTAMP > " + timestamp, null, null);
+                    ArrayList<String> runApps = new ArrayList<>();
+                    if (apps_run != null ) {
+                        while (apps_run.moveToNext()) {
+                            runApps.add(apps_run.getString(apps_run.getColumnIndex(Applications_Provider.Applications_Foreground.PACKAGE_NAME)));
+                        }
+                        apps_run.close();
+                    }
+                    checkNotificationInteraction(notif, runApps);
                 }
-                apps_run.close();
-            }
-            checkNotificationInteraction(notif, runApps);
+            }, AppManagement.INTERACTION_CHECK_DELAY);
         }
     }
 
@@ -608,20 +634,14 @@ public class NotificationListener extends NotificationListenerService {
             arrivedNotifications.remove(matchingNotification);
 
             final UnsyncedNotification match = matchingNotification;
-            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    initDbConnection();
-                    if (!AppManagement.predictionsEnabled(context) && !match.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
-                        getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, helper.get(match.sqlite_row_id).toSyncableContentValues(context));
-                    }
-                    int count = (helper.countPredictions(context) + helper.countUnlabeledNotifications());
-                    if (count > 0) BadgeUtils.setBadge(context, count);
-                    else BadgeUtils.clearBadge(context);
-                    closeDbConnection();
-                }
-            }, 500);
+            if (!AppManagement.predictionsEnabled(context) && !match.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
+                getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, helper.get(match.sqlite_row_id).toSyncableContentValues(context));
+            }
+            int count = (helper.countPredictions(context) + helper.countUnlabeledNotifications());
+            if (count > 0) BadgeUtils.setBadge(context, count);
+            else BadgeUtils.clearBadge(context);
         }
+        closeDbConnection();
     }
 
     private int getCurrentScreenMode() {

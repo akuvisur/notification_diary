@@ -186,18 +186,12 @@ public class UnsyncedData extends SQLiteOpenHelper {
     public synchronized void updateEntry(final Context c, int id, ContentValues updated_values) {
         init();
         database.update(DATABASE_NAME, updated_values, "_id=? " , new String[]{String.valueOf(id)});
-        if (!syncing) new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(c)) > AppManagement.SYNC_DELAY) syncAlltoProvider(c);
-            }
-        },50);
+        if (!syncing && ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(c) > AppManagement.SYNC_DELAY))) syncAlltoProvider(c);
     }
 
     public synchronized ArrayList<UnsyncedNotification> getUnlabeledNotifications() {
         init();
         ArrayList<UnsyncedNotification> result = new ArrayList<>();
-
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
                 UnsyncedData.Notifications_Table.labeled + "=? AND " + UnsyncedData.Notifications_Table.interaction_type + "=?",
@@ -423,7 +417,6 @@ public class UnsyncedData extends SQLiteOpenHelper {
         ArrayList<Integer> ids = new ArrayList<>();
         if (cursor != null) {
             while (cursor.moveToNext()) {
-
                 ids.add(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)));
                 UnsyncedNotification u = new UnsyncedNotification();
                 u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp));
@@ -468,13 +461,11 @@ public class UnsyncedData extends SQLiteOpenHelper {
         }
 
         syncing = false;
-        database.close();
     }
 
     @Override
     public void close() {
         if (database != null && database.isOpen()) database.close();
-
     }
 
     public class Prediction {

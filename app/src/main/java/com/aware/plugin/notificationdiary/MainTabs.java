@@ -273,7 +273,7 @@ public class MainTabs extends AppCompatActivity {
         catch (Exception e) {e.printStackTrace();}
 
         initDbConnection();
-        int count = (helper.countPredictions(context) + helper.countUnlabeledNotifications());
+        int count = (helper.getPredictions(context).size() + helper.getUnlabeledNotifications().size());
         if (count > 0) BadgeUtils.setBadge(context, count);
         else BadgeUtils.clearBadge(context);
         closeDbConnection();
@@ -383,18 +383,15 @@ public class MainTabs extends AppCompatActivity {
             switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
                 // Diary view
                 case 1:
-                    view = activity.generateDiaryView(context, inflater, container);
-                    return view;
+                    return activity.generateDiaryView(context, inflater, container);
                 case 2:
-                    view = activity.generatePredictionView(context,inflater, container);
-                    return view;
+                    return activity.generatePredictionView(context,inflater, container);
                 case 3:
                     return activity.generateHelpView(context,inflater, container);
                 case 4:
                     return activity.generateSettingsView(context, inflater, container);
                 default:
-                    view = activity.generateDiaryView(context, inflater, container);
-                    return view;
+                    return activity.generateDiaryView(context, inflater, container);
             }
         }
     }
@@ -721,6 +718,8 @@ public class MainTabs extends AppCompatActivity {
     TextView model_accuracy;
     TextView accuracy_description;
     LinearLayout accuracy_visualisation;
+    TextView important_words;
+    TextView unimportant_words;
 
     ClassifierProgressReceiver progressReceiver;
     private boolean predictionViewGenerated = false;
@@ -735,6 +734,8 @@ public class MainTabs extends AppCompatActivity {
             model_accuracy = (TextView) rootView.findViewById(R.id.model_accuracy);
             accuracy_description = (TextView) rootView.findViewById(R.id.accuracy_description);
             accuracy_visualisation = (LinearLayout) rootView.findViewById(R.id.accuracy_visualisation);
+            important_words = (TextView) rootView.findViewById(R.id.important_words);
+            unimportant_words = (TextView) rootView.findViewById(R.id.unimportant_words);
 
             classifier_progress = (RoundCornerProgressBar) rootView.findViewById(R.id.classifier_progress);
             classifier_progress.setVisibility(View.INVISIBLE);
@@ -766,6 +767,12 @@ public class MainTabs extends AppCompatActivity {
                     startActivity(predAct);
                 }
             });
+            initDbConnection();
+            launch_pred_act.setText("VIEW PREDICTED NOTIFICATIONS (" + helper.getPredictions(context).size() + ")");
+            UnsyncedData.ContentImportance importances = helper.getContentImportance(context);
+            important_words.setText(importances.importantToString());
+            unimportant_words.setText(importances.unimportantToString());
+            closeDbConnection();
 
             disable_pred.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -825,7 +832,7 @@ public class MainTabs extends AppCompatActivity {
                 }
             });
             int training_data_amount = helper.getNumOfTrainingData();
-            if (training_data_amount >= 100) enable_predictions.setEnabled(true);
+            if (training_data_amount >= 50) enable_predictions.setEnabled(true);
             if (DEBUG) enable_predictions.setEnabled(true);
 
             classifier_progress = (RoundCornerProgressBar) rootView.findViewById(R.id.classifier_progress);

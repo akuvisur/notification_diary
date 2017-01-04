@@ -81,7 +81,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
-                android:id="@+id/textView9"
+                android:id="@+id/important_words"
                 android:layout_below="@+id/textView2"
                 android:layout_alignParentBottom="true"
                 android:layout_toStartOf="@+id/important_right_edge"
@@ -119,7 +119,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@+id/textView8"
-                android:id="@+id/textView13"
+                android:id="@+id/unimportant_words"
                 android:layout_alignParentBottom="true"
                 android:layout_alignParentStart="true"
                 android:layout_toStartOf="@+id/unimportant_right_edge"
@@ -145,12 +145,14 @@
             android:id="@+id/launch_pred_act"
             android:layout_marginTop="8dp"
             android:background="@color/colorPrimaryLight"
+            android:padding="4dp"
             />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:layout_marginTop="8dp"
+            >
         <Button
             android:text="GENERATE NEW MODEL"
             android:layout_width="wrap_content"
@@ -158,6 +160,7 @@
             android:id="@+id/refresh_model"
             android:layout_marginRight="8dp"
             android:background="@color/colorPrimaryLight"
+            android:padding="4dp"
             />
 
             <Button
@@ -166,6 +169,7 @@
                 android:text="DISABLE PREDICTIONS"
                 android:id="@+id/disable_predictions"
                 android:background="@color/colorPrimaryLight"
+                android:padding="4dp"
                 />
         </LinearLayout>
         <include layout="@layout/classifier_progress" />

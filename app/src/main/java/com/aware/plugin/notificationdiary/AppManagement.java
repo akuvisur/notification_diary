@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
+import android.os.Build;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.text.format.DateFormat;
@@ -21,6 +22,14 @@ import com.aware.plugin.notificationdiary.Providers.WordBins;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.TimeZone;
 
@@ -58,8 +67,9 @@ public class AppManagement {
 
     public static final int NOTIFICATION_UNLABELED_NOTIFICATIONS = 7812378;
     public static final int NOTIFICATION_UNVERIFIED_PREDICTIONS = 98347734;
+    public static final int NOTIFICATION_CAN_ENABLE_PREDICTIONS = 7584929;
 
-    public static long LAST_TOUCH = 0;
+    public static final int WORD_IMPORTANCE_SIZE = 10;
 
     //public static final ArrayList<Permission> neuraPermissions = Permission.list(new String[]{"userArrivedHome", "userArrivedToWork", "userArrivedAtCafe", "userArrivedAtHospital", "userArrivedAtAirport", "userArrivedAtSchoolCampus", "userArrivedAtGroceryStore"});
 
@@ -187,7 +197,6 @@ public class AppManagement {
         }
         Random r = new Random();
         int random = r.nextInt((max - min) + 1) + min;
-        Log.d(TAG, "new random: " + random);
         return random;
     }
 
@@ -245,13 +254,20 @@ public class AppManagement {
     public static void startDailyModel(Context c) {
         if (predictionsEnabled(c)) {
             Intent i = new Intent(c, ContentAnalysisService.class);
-
-            PendingIntent pi = PendingIntent.getService(c, 0, i, 0);
+            PendingIntent repeatingIntent = PendingIntent.getService(c, 0, i, PendingIntent.FLAG_UPDATE_CURRENT);
             AlarmManager am = (AlarmManager) c.getSystemService(ALARM_SERVICE);
-            am.cancel(pi); // cancel any existing alarms
-            am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_DAY,
-                AlarmManager.INTERVAL_DAY, pi);
+            am.cancel(repeatingIntent);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AlarmManager.INTERVAL_DAY,
+                        repeatingIntent);
+            } else {
+                am.setRepeating(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        AlarmManager.INTERVAL_DAY,
+                        repeatingIntent);
+            }
+
         }
     }
 
@@ -266,5 +282,61 @@ public class AppManagement {
     public static int getTutorialPage(Context c) {
         sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
         return sp.getInt(TUTORIAL_PAGE, 1);
+    }
+
+    public static class MapUtil
+    {
+        public static <K, V extends Comparable<? super V>> Map<K, V>
+        sortByHighestValue( Map<K, V> map )
+        {
+            List<Map.Entry<K, V>> list =
+                    new LinkedList<Map.Entry<K, V>>( map.entrySet() );
+            Collections.sort( list, new Comparator<Map.Entry<K, V>>()
+            {
+                public int compare( Map.Entry<K, V> o1, Map.Entry<K, V> o2 )
+                {
+                    return (o1.getValue()).compareTo( o2.getValue() );
+                }
+            } );
+
+            Map<K, V> result = new LinkedHashMap<K, V>();
+            for (Map.Entry<K, V> entry : list)
+            {
+                result.put( entry.getKey(), entry.getValue() );
+            }
+            return result;
+        }
+
+        public static <K, V extends Comparable<? super V>> Map<K, V>
+        sortByLowestValue( Map<K, V> map )
+        {
+            List<Map.Entry<K, V>> list =
+                    new LinkedList<Map.Entry<K, V>>( map.entrySet() );
+            Collections.sort( list, new Comparator<Map.Entry<K, V>>()
+            {
+                public int compare( Map.Entry<K, V> o1, Map.Entry<K, V> o2 )
+                {
+                    return (o2.getValue()).compareTo( o1.getValue() );
+                }
+            } );
+
+            Map<K, V> result = new LinkedHashMap<K, V>();
+            for (Map.Entry<K, V> entry : list)
+            {
+                result.put( entry.getKey(), entry.getValue() );
+            }
+            return result;
+        }
+    }
+
+    public static double average(ArrayList<Integer> args) {
+        double sum = 0; //average will have decimal point
+        for(int i=0; i < args.size(); i++){
+            //parse string to double, note that this might fail if you encounter a non-numeric string
+            //Note that we could also do Integer.valueOf( args[i] ) but this is more flexible
+            sum += Double.valueOf(args.get(i));
+        }
+        double average = sum/args.size();
+        return average;
     }
 }

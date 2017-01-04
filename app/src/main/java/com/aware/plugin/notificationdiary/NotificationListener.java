@@ -71,9 +71,13 @@ import weka.core.Instance;
 import weka.core.Instances;
 
 import static android.app.PendingIntent.FLAG_CANCEL_CURRENT;
+import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_CAN_ENABLE_PREDICTIONS;
 import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_UNLABELED_NOTIFICATIONS;
 import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_UNVERIFIED_PREDICTIONS;
+import static com.aware.plugin.notificationdiary.MainTabs.PREDICTION_TAB;
+import static com.aware.plugin.notificationdiary.MainTabs.START_WITH_TAB;
 import static com.aware.plugin.notificationdiary.NotificationAlarmManager.NOTIFICATION_SOUND_URI;
+import static com.aware.plugin.notificationdiary.NotificationAlarmManager.NOTIFICATION_VIBRATE;
 
 public class NotificationListener extends NotificationListenerService {
     static final String TAG = "NotificationListener";
@@ -324,6 +328,9 @@ public class NotificationListener extends NotificationListenerService {
                         repeatingIntent);
             }
         }
+        initDbConnection();
+        helper.syncAlltoProvider(this);
+        closeDbConnection();
 
         return START_STICKY;
     }
@@ -421,7 +428,10 @@ public class NotificationListener extends NotificationListenerService {
     public void onNotificationPosted(StatusBarNotification sbn) {
         super.onNotificationPosted(sbn);
         initDbConnection();
-        Log.d(TAG, "New notification posted: " + sbn.getPackageName() + " : " + sbn.getId());
+
+        //Log.d(TAG, "New notification posted: " + sbn.getPackageName() + " : " + sbn.getId());
+        //Log.d(TAG, "predictions enabled: " + AppManagement.predictionsEnabled(context));
+
         // always show by default
         int showNotification = -1;
         boolean replacement = false;
@@ -434,7 +444,6 @@ public class NotificationListener extends NotificationListenerService {
         // if a notification should not be shown, remove it and don't store it
         if (AppManagement.predictionsEnabled(context)) {
             if (!shouldNotificationBeDisplayed(context, sbn)) {
-                hideNotification(sbn);
                 showNotification = 0;
             }
             else {
@@ -461,11 +470,10 @@ public class NotificationListener extends NotificationListenerService {
                 helper.updateEntry(context, (int) iterated_n.sqlite_row_id, replace);
                 replacedNotification = iterated_n;
                 replacement = true;
-                Log.d(TAG, "replacement");
             }
         }
 
-        if (replacedNotification != null) {arrivedNotifications.remove(replacedNotification);}
+        if (replacedNotification != null || showNotification == 0) {arrivedNotifications.remove(replacedNotification);}
 
         UnsyncedNotification unsynced = new UnsyncedNotification();
         unsynced.generate_timestamp = System.currentTimeMillis();
@@ -473,7 +481,6 @@ public class NotificationListener extends NotificationListenerService {
         if (contents[0] != null) unsynced.title = contents[0]; else unsynced.title = "";
         unsynced.application_package = sbn.getPackageName();
         unsynced.notification_id = sbn.getId();
-        Log.d(TAG, "new posted, package: " + unsynced.application_package + " id: " + unsynced.notification_id);
         unsynced.predicted_as_show = showNotification;
 
         if (Build.VERSION.SDK_INT >= 21 && n.category != null) unsynced.notification_category = n.category;
@@ -491,13 +498,14 @@ public class NotificationListener extends NotificationListenerService {
         c.put(UnsyncedData.Notifications_Table.seen_timestamp, unsynced.seen_timestamp);
         c.put(UnsyncedData.Notifications_Table.seen, unsynced.seen);
         c.put(UnsyncedData.Notifications_Table.predicted_as_show, showNotification);
+        c.put(UnsyncedData.Notifications_Table.prediction_correct, -1);
+        if (showNotification == 0) c.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_PREDICTION_HIDE);
         // add "final" context values if a replaced notification
         if (replacement) c = new InteractionContext(context).addToValues(c);
 
         unsynced.sqlite_row_id = helper.insertRecord(context, c);
 
         arrivedNotifications.add(unsynced);
-        Log.d(TAG, "posted: "  + unsynced.title + " / " + unsynced.message);
 
         // if the notification if any of the notifications posted by this app, dont try to
         // repost the reminder notification
@@ -518,10 +526,27 @@ public class NotificationListener extends NotificationListenerService {
                 notificationManager.notify(NOTIFICATION_UNLABELED_NOTIFICATIONS, launch_notification);
             }
         }
-        if (AppManagement.predictionsEnabled(context) && !replacement && showNotification == 1) {
-            Log.d(TAG, "call send cue");
+        if (AppManagement.predictionsEnabled(context) && !replacement && showNotification == 1 && sbn.getNotification().category != null && !sbn.getNotification().category.equals(Notification.CATEGORY_PROGRESS)) {
             sendNotificationCue(sbn);
         }
+        else if (showNotification == 0 && sbn.isClearable()) hideNotification(sbn);
+
+        if (!AppManagement.predictionsEnabled(context) && helper.getNumOfTrainingData() > 50 && (AppManagement.getRandomNumberInRange(0, 100) <= 25)) {
+            NotificationManager notificationManager = (NotificationManager)
+                    getSystemService(NOTIFICATION_SERVICE);
+            Intent launchIntent = new Intent(this, MainTabs.class);
+            launchIntent.putExtra(START_WITH_TAB, PREDICTION_TAB);
+            PendingIntent pi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), launchIntent, FLAG_CANCEL_CURRENT);
+            Notification launch_notification = new Notification.Builder(this)
+                    .setContentTitle("You have enough training data to enable predictions.")
+                    .setContentText("Click to launch Notification Diary")
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentIntent(pi)
+                    .setAutoCancel(true)
+                    .build();
+            notificationManager.notify(NOTIFICATION_CAN_ENABLE_PREDICTIONS, launch_notification);
+        }
+
         closeDbConnection();
     }
 
@@ -540,8 +565,6 @@ public class NotificationListener extends NotificationListenerService {
 
     HashMap<StatusBarNotification, String> interactionForegroundApplications = new HashMap<>();
     public void onNotificationRemoved(StatusBarNotification sbn) {
-        Log.d(TAG, "*** NOTIFICATION REMOVED");
-        Log.d(TAG, "id : " + sbn.getId());
         String packageName = sbn.getPackageName();
         new UnsyncedData(context).syncAlltoProvider(context);
 
@@ -587,7 +610,6 @@ public class NotificationListener extends NotificationListenerService {
         initDbConnection();
 
         String[] removed_notification_contents = loadTexts(this, sbn.getNotification());
-        Log.d(TAG, "contents: " + removed_notification_contents[0] + " " + removed_notification_contents[1]);
 
         UnsyncedNotification matchingNotification = null;
         for (UnsyncedNotification n : arrivedNotifications) {
@@ -633,11 +655,7 @@ public class NotificationListener extends NotificationListenerService {
             // remove this from list
             arrivedNotifications.remove(matchingNotification);
 
-            final UnsyncedNotification match = matchingNotification;
-            if (!AppManagement.predictionsEnabled(context) && !match.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS)) {
-                getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, helper.get(match.sqlite_row_id).toSyncableContentValues(context));
-            }
-            int count = (helper.countPredictions(context) + helper.countUnlabeledNotifications());
+            int count = (helper.getPredictions(context).size() + helper.countUnlabeledNotifications());
             if (count > 0) BadgeUtils.setBadge(context, count);
             else BadgeUtils.clearBadge(context);
         }
@@ -952,7 +970,7 @@ public class NotificationListener extends NotificationListenerService {
     }
 
     private void hideNotification(StatusBarNotification sbn) {
-        Log.d(TAG, sbn.getId() + " from " + sbn.getPackageName() + " should have been hidden");
+        Log.d(TAG, sbn.getId() + " from " + sbn.getPackageName() + " will be hidden");
         cancelNotification(sbn.getKey());
     }
 
@@ -960,9 +978,9 @@ public class NotificationListener extends NotificationListenerService {
     private void sendNotificationCue(StatusBarNotification sbn) {
         Intent cue = new Intent(SEND_NOTIFICATION_CUE);
         cue.putExtra(NotificationAlarmManager.ACTION_MODE_CHANGED_FROM_NOTIFICATION_DIARY, true);
+        if (sbn.getNotification().vibrate != null) cue.putExtra(NOTIFICATION_VIBRATE, sbn.getNotification().vibrate);
         if (sbn.getNotification().sound != null) cue.putExtra(NOTIFICATION_SOUND_URI, sbn.getNotification().sound);
         sendBroadcast(cue);
-        Log.d(TAG, "send broadcast for CUE");
     }
 
     /*

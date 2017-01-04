@@ -179,7 +179,7 @@ public class DiaryNotification {
         ContentValues result = new ContentValues();
 
         // required for syncing
-        result.put(Provider.Notifications_Data.TIMESTAMP, generate_timestamp);
+        result.put(Provider.Notifications_Data.TIMESTAMP, System.currentTimeMillis());
         result.put(Provider.Notifications_Data.DEVICE_ID, Aware.getSetting(c, Aware_Preferences.DEVICE_ID));
 
         if (notification_id != null) result.put(Provider.Notifications_Data.notification_id, notification_id);

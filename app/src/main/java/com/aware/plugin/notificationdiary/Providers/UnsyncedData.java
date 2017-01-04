@@ -14,8 +14,14 @@ import com.aware.Aware_Preferences;
 import com.aware.plugin.google.fused_location.Provider;
 import com.aware.plugin.notificationdiary.AppManagement;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
+import com.aware.plugin.notificationdiary.R;
+import com.aware.plugin.notificationdiary.Utils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static com.aware.plugin.notificationdiary.ContentAnalysisService.EMPTY_VALUE;
 
@@ -194,11 +200,13 @@ public class UnsyncedData extends SQLiteOpenHelper {
         ArrayList<UnsyncedNotification> result = new ArrayList<>();
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
-                UnsyncedData.Notifications_Table.labeled + "=? AND " + UnsyncedData.Notifications_Table.interaction_type + "=?",
-                new String[]{"0", AppManagement.INTERACTION_TYPE_DISMISS},
+                "(" + UnsyncedData.Notifications_Table.labeled + "=? AND " + UnsyncedData.Notifications_Table.interaction_type + "=?) OR (" +
+                Notifications_Table.interaction_type + "=? AND " + Notifications_Table.labeled + " =?)",
+                new String[]{"0", AppManagement.INTERACTION_TYPE_DISMISS, AppManagement.INTERACTION_TYPE_REPLACE, "0"},
                 null, null,
                 UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
-
+        // dont ask twice about replaced ones that were skipped once
+        ArrayList<Integer> replaced_skipped = new ArrayList<>();
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 UnsyncedNotification u = new UnsyncedNotification();
@@ -208,16 +216,37 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(UnsyncedData.Notifications_Table.seen_timestamp));
                 u.application_package = cursor.getString(cursor.getColumnIndex(UnsyncedData.Notifications_Table.application_package));
                 u.sqlite_row_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID));
-                result.add(u);
+                if (!cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type)).equals(AppManagement.INTERACTION_TYPE_REPLACE)) {
+                    result.add(u);
+                }
+                // add 10% of replaced ones
+                else if (AppManagement.getRandomNumberInRange(0,100) <= 10) {
+                    result.add(u);
+                }
+                else {
+                    replaced_skipped.add(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)));
+                }
             }
             cursor.close();
+            // put the replaced ones as skipped
+            database.beginTransaction();
+
+            ContentValues values = new ContentValues();
+            values.put(Notifications_Table.labeled, "-1");
+            try {
+                for (Integer id : replaced_skipped) {
+                    database.update(DATABASE_NAME, values, "_id=" + id, null);
+                }
+                database.setTransactionSuccessful();
+            } finally {
+                database.endTransaction();
+            }
         }
         return result;
     }
 
     public synchronized int countUnlabeledNotifications() {
         init();
-        ArrayList<UnsyncedNotification> result = new ArrayList<>();
         int count = 0;
         Cursor cursor = database.query(DATABASE_NAME,
                 new String[]{UnsyncedData.Notifications_Table._ID},
@@ -242,10 +271,9 @@ public class UnsyncedData extends SQLiteOpenHelper {
         // getString all that are EITHER 1) labeled and dismissed or 2) clicked
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
-                UnsyncedData.Notifications_Table.seen + "=? AND ((" + Notifications_Table.labeled + "=? AND " +
-                        Notifications_Table.interaction_type + "=?) OR " + Notifications_Table.interaction_type + "=?) OR "
+                Notifications_Table.labeled + "=? OR " + Notifications_Table.interaction_type + "=? OR "
                 + Notifications_Table.prediction_correct + " > -1",
-                new String[]{"1", "1", AppManagement.INTERACTION_TYPE_DISMISS, AppManagement.INTERACTION_TYPE_CLICK},
+                new String[]{"1", AppManagement.INTERACTION_TYPE_CLICK},
                 null, null,
                 UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
 
@@ -292,8 +320,8 @@ public class UnsyncedData extends SQLiteOpenHelper {
         init();
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
-                Notifications_Table.labeled + "=?",
-                new String[]{"1"},
+                Notifications_Table.labeled + "=? OR " + Notifications_Table.interaction_type + "=?",
+                new String[]{"1", AppManagement.INTERACTION_TYPE_CLICK},
                 null, null,
                 null);
         int count = 0;
@@ -301,7 +329,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         return count;
     }
 
-    public ArrayList<NotificationText> getAllNotificationText() {
+    public synchronized ArrayList<NotificationText> getAllNotificationText() {
         init();
         ArrayList<NotificationText> result = new ArrayList<>();
         Cursor cursor = database.query(DATABASE_NAME,
@@ -323,20 +351,104 @@ public class UnsyncedData extends SQLiteOpenHelper {
         return result;
     }
 
+    public synchronized ContentImportance getContentImportance(Context c) {
+        init();
+        ContentImportance result = new ContentImportance();
+
+        HashMap<String, ArrayList<Integer>> word_importances = new HashMap<>();
+
+        Cursor cursor = database.query(DATABASE_NAME,
+                new String[]{Notifications_Table.title, Notifications_Table.message, Notifications_Table.content_importance, Notifications_Table.interaction_type},
+                "(" + Notifications_Table.labeled + "=? AND " + Notifications_Table.content_importance + ">?) OR " + Notifications_Table.interaction_type + "=?",
+                new String[]{"1", "0", AppManagement.INTERACTION_TYPE_CLICK},
+                null, null, null);
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                ArrayList<String> words = strip(c, cursor.getString(cursor.getColumnIndex(Notifications_Table.title)), cursor.getString(cursor.getColumnIndex(Notifications_Table.message)));
+                for (String word : words) {
+                    if (!word_importances.containsKey(word)) word_importances.put(word, new ArrayList<Integer>());
+                    if (AppManagement.INTERACTION_TYPE_CLICK.equals(cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type)))) word_importances.get(word).add(5);
+                    else word_importances.get(word).add(cursor.getInt(cursor.getColumnIndex(Notifications_Table.content_importance)));
+                }
+            }
+            cursor.close();
+        }
+        HashMap<String, Double> word_importances_avg = new HashMap<>();
+        for (String word : word_importances.keySet()) {
+            word_importances_avg.put(word, AppManagement.average(word_importances.get(word)));
+        }
+        // these are actually flipped since keyset() returns keys in REVERSE order
+        Map<String, Double> highest = AppManagement.MapUtil.sortByHighestValue(word_importances_avg);
+        Map<String, Double> lowest = AppManagement.MapUtil.sortByLowestValue(word_importances_avg);
+        int index = 0;
+        // first result in iterator is the LAST key, so the lowest
+        for (String key : highest.keySet()) {
+            if (index >= AppManagement.WORD_IMPORTANCE_SIZE) break;
+            result.unimportant[index] = key;
+            index++;
+        }
+        index = 0;
+        for (String key : lowest.keySet()) {
+            if (index >= AppManagement.WORD_IMPORTANCE_SIZE) break;
+            result.important[index] = key;
+            index++;
+        }
+        return result;
+    }
+
+    public class ContentImportance {
+        String[] important = new String[AppManagement.WORD_IMPORTANCE_SIZE];
+        String[] unimportant = new String[AppManagement.WORD_IMPORTANCE_SIZE];
+        public ContentImportance() {
+            for (int i = 0;i < AppManagement.WORD_IMPORTANCE_SIZE;i++) {
+                important[i] = "";
+                unimportant[i] = "";
+            }
+        }
+        public String importantToString() {
+            String result = "";
+            for (int i = 0;i < AppManagement.WORD_IMPORTANCE_SIZE;i++) {
+                if (i < (AppManagement.WORD_IMPORTANCE_SIZE-1)) result += important[i] + ",";
+                else result += important[i];
+            }
+            return result;
+        }
+        public String unimportantToString() {
+            String result = "";
+            for (int i = 0;i < AppManagement.WORD_IMPORTANCE_SIZE;i++) {
+                if (i < (AppManagement.WORD_IMPORTANCE_SIZE-1)) result += unimportant[i] + ",";
+                else result += unimportant[i];
+            }
+            return result;
+        }
+    }
+
+    private ArrayList<String> stopWordsEng = null;
+    private ArrayList<String> stopWordsFin = null;
+    private ArrayList<String> strip(Context c, String title, String contents) {
+        if (stopWordsEng == null) stopWordsEng = new ArrayList<>(Arrays.asList(Utils.readStopWords(c, R.raw.english)));
+        if (stopWordsFin == null) stopWordsFin = new ArrayList<>(Arrays.asList(Utils.readStopWords(c, R.raw.finnish)));
+        String a = title + " " + contents;
+        a = a.toLowerCase().replaceAll("^[a-zA-Z0-9äöüÄÖÜ]", " ");
+        ArrayList<String> words = new ArrayList<>(Arrays.asList(a.split(" ")));
+        words.removeAll(stopWordsEng);
+        words.removeAll(stopWordsFin);
+        return words;
+    }
+
     public synchronized ArrayList<Prediction> getPredictions(Context c) {
         init();
         ArrayList<Prediction> result = new ArrayList<>();
         Cursor cursor = database.query(DATABASE_NAME,
                 new String[]{Notifications_Table.title, Notifications_Table.message, Notifications_Table.application_package, Notifications_Table._ID, Notifications_Table.seen_timestamp, Notifications_Table.predicted_as_show, Notifications_Table.labeled, Notifications_Table.interaction_type},
-                Notifications_Table.predicted_as_show + " > -1 AND " + Notifications_Table.prediction_correct + " > -1 AND " + Notifications_Table.interaction_type + " !=?",
+                Notifications_Table.predicted_as_show + " > -1 AND " + Notifications_Table.prediction_correct + " == -1 AND " + Notifications_Table.interaction_type + " !=?",
                 new String[]{AppManagement.INTERACTION_TYPE_REPLACE},
                 null, null,
                 Notifications_Table.generate_timestamp + " DESC");
-        Log.d(TAG, "getPredictions()");
         if (cursor != null) {
             rowiteration:
             while (cursor.moveToNext()) {
-                Log.d(TAG, "next prediction");
                 Prediction p = new Prediction(
                         cursor.getString(cursor.getColumnIndex(Notifications_Table.message)),
                         cursor.getString(cursor.getColumnIndex(Notifications_Table.title)),
@@ -365,26 +477,6 @@ public class UnsyncedData extends SQLiteOpenHelper {
         }
 
         return result;
-    }
-
-    public synchronized int countPredictions(Context c) {
-        init();
-        int count = 0;
-        Cursor cursor = database.query(DATABASE_NAME,
-                new String[]{Notifications_Table._ID},
-                Notifications_Table.predicted_as_show + " > -1 AND " + Notifications_Table.prediction_correct + " > -1 AND " + Notifications_Table.interaction_type + " !=?",
-                new String[]{AppManagement.INTERACTION_TYPE_REPLACE},
-                null, null,
-                Notifications_Table.generate_timestamp + " DESC");
-        if (cursor != null) {
-            rowiteration:
-            while (cursor.moveToNext()) {
-                count++;
-            }
-            cursor.close();
-        }
-
-        return count;
     }
 
     private static boolean syncing = false;
@@ -428,7 +520,9 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 u.interaction_type = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
                 u.activity = cursor.getString(cursor.getColumnIndex(Notifications_Table.activity)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.activity));
                 u.battery_level = cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level));
-                u.foreground_application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package));
+                u.foreground_application_package = (cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package)) == null || cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package)) == "")
+                        ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package));
+
                 u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
                 u.wifi_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability));
                 u.network_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability));

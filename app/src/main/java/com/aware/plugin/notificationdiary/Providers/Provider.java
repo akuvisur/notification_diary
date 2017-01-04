@@ -38,7 +38,7 @@ public class Provider extends ContentProvider {
     /**
      * ContentProvider database version. Increment every time you modify the database structure
      */
-    public static final int DATABASE_VERSION = 6;
+    public static final int DATABASE_VERSION = 10;
 
     public static final String[] DATABASE_TABLES = {
             DB_TBL_NOTIFICATIONS,
@@ -128,29 +128,29 @@ public class Provider extends ContentProvider {
             Notifications_Data._ID + " integer primary key autoincrement," +
             Notifications_Data.TIMESTAMP + " real default 0," +
             Notifications_Data.DEVICE_ID + " text default ''," +
-            Notifications_Data.notification_id + " TEXT," +
-            Notifications_Data.generate_timestamp + " real," +
-            Notifications_Data.interaction_timestamp + " real," +
-            Notifications_Data.interaction_type + " TEXT," +
-            Notifications_Data.seen_timestamp + " real," +
-            Notifications_Data.application_package + " TEXT," +
-            Notifications_Data.notification_category + " TEXT," +
-            Notifications_Data.location + " TEXT," +
-            Notifications_Data.activity + " TEXT," +
-            Notifications_Data.headphone_jack + " TEXT," +
-            Notifications_Data.screen_mode + " TEXT," +
-            Notifications_Data.ringer_mode + " TEXT," +
-            Notifications_Data.battery_level + " integer," +
-            Notifications_Data.network_availability + " TEXT," +
-            Notifications_Data.wifi_availability + " TEXT," +
-            Notifications_Data.foreground_application_package + " TEXT," +
-            Notifications_Data.synced + " TEXT," +
-            // no = no, 1 = yes
-            Notifications_Data.seen + " integer default 0," +
-            // 0 = no, 1 = yes, -1 = skipped
-            Notifications_Data.labeled + " integer default 0," +
-            Notifications_Data.content_importance + " REAL," +
-            Notifications_Data.timing + " REAL," +
+            Notifications_Data.notification_id + " TEXT default 'unknown'," +
+            Notifications_Data.generate_timestamp + " real default -1," +
+            Notifications_Data.interaction_timestamp + " real default -1," +
+            Notifications_Data.interaction_type + " TEXT default 'unknown'," +
+            Notifications_Data.seen_timestamp + " real default -1," +
+            Notifications_Data.application_package + " TEXT default 'unknown'," +
+            Notifications_Data.notification_category + " TEXT default 'unknown'," +
+            Notifications_Data.location + " TEXT default 'unknown'," +
+            Notifications_Data.activity + " TEXT default 'unknown'," +
+            Notifications_Data.headphone_jack + " TEXT default 'unknown'," +
+            Notifications_Data.screen_mode + " TEXT default 'unknown'," +
+            Notifications_Data.ringer_mode + " TEXT default 'unknown'," +
+            Notifications_Data.battery_level + " integer default -1," +
+            Notifications_Data.network_availability + " TEXT default 'unknown'," +
+            Notifications_Data.wifi_availability + " TEXT default 'unknown'," +
+            Notifications_Data.foreground_application_package + " TEXT default 'unknown'," +
+            Notifications_Data.synced + " TEXT default 'unknown'," +
+            // no = no, 1 = yes, -1 unknown
+            Notifications_Data.seen + " integer default -1," +
+            // 0 = no, 1 = yes, -1 = skipped, -2 = unknown
+            Notifications_Data.labeled + " integer default -2," +
+            Notifications_Data.content_importance + " REAL default -1," +
+            Notifications_Data.timing + " REAL default -1," +
             // prediction results
             Notifications_Data.predicted_as_show + " integer default -1," +
             Notifications_Data.prediction_correct + " integer default -1";

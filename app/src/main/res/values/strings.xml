@@ -13,8 +13,7 @@
     <string name="app_secret">c4e08dc0c6b52e24e2ad2a6ae5265ce0cb180a5b9298a3ad9452bd6769ed3f9c</string>
 
     <string name="predictions_disabled">
-"To enable predictive notification management, you are required to label sufficient number of dismissed notifications, and then the system needs to be able to build sufficiently accurate predictor.\r\n
-The ENABLE PREDICTIONS -button will be enabled once these conditions are met.
+"To enable predictive notification management, you are required to collect enough training data. The ENABLE PREDICTIONS -button will be enabled once these conditions (50) are met. Please note that early models (50-100 training data) might still be inaccurate.
     </string>
 
     <string name="predictions_enabled">

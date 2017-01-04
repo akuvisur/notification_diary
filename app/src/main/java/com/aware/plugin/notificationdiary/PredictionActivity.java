@@ -2,6 +2,7 @@ package com.aware.plugin.notificationdiary;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.database.Cursor;
 import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -18,11 +19,16 @@ import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.aware.Aware;
+import com.aware.Aware_Preferences;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
 import com.aware.plugin.notificationdiary.Providers.Provider;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
+import com.aware.providers.Aware_Provider;
 
 import java.util.ArrayList;
+
+import static com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI;
 
 public class PredictionActivity extends AppCompatActivity {
 
@@ -81,6 +87,7 @@ public class PredictionActivity extends AppCompatActivity {
                     ids.add(p.sqlite_id);
                 }
 
+                /*
                 for (Long id : ids) {
                     UnsyncedNotification n = helper.get(id);
                     if (n.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS) && n.labeled)
@@ -88,6 +95,7 @@ public class PredictionActivity extends AppCompatActivity {
                     else if (!n.interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS))
                         getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, n.toSyncableContentValues(context));
                 }
+                */
 
                 predictions.clear();
                 prediction_list.invalidate();
@@ -96,6 +104,7 @@ public class PredictionActivity extends AppCompatActivity {
                 closeDbConnection();
             }
         });
+
     }
 
     PredictionListAdapter adapter;
@@ -158,6 +167,7 @@ public class PredictionActivity extends AppCompatActivity {
             accept_button.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    initDbConnection();
                     ContentValues c = new ContentValues();
                     c.put(UnsyncedData.Notifications_Table.prediction_correct, 1);
                     helper.updateEntry(context, (int) items.get(i).sqlite_id, c);
@@ -166,27 +176,19 @@ public class PredictionActivity extends AppCompatActivity {
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            initDbConnection();
-                            if (items.get(i).interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS) && items.get(i).labeled > 0)
-                                getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, helper.get(items.get(i).sqlite_id).toSyncableContentValues(context));
-                            else if (!items.get(i).interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS))
-                                getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, helper.get(items.get(i).sqlite_id).toSyncableContentValues(context));
-                            ContentValues synced = new ContentValues();
-                            synced.put(UnsyncedData.Notifications_Table.synced, "1");
-                            helper.updateEntry(context, (int) items.get(i).sqlite_id, synced);
-
                             items.remove(i);
                             notifyDataSetChanged();
                             updateNumPredictions();
-                            closeDbConnection();
                         }
                     },400);
+                    closeDbConnection();
                 }
             });
 
             reject_button.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    initDbConnection();
                     ContentValues c = new ContentValues();
                     c.put(UnsyncedData.Notifications_Table.prediction_correct, 0);
                     helper.updateEntry(context, (int) items.get(i).sqlite_id, c);
@@ -195,22 +197,12 @@ public class PredictionActivity extends AppCompatActivity {
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            initDbConnection();
-                            if (items.get(i).interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS) && items.get(i).labeled > 0)
-                                getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, helper.get(items.get(i).sqlite_id).toSyncableContentValues(context));
-                            else if (!items.get(i).interaction_type.equals(AppManagement.INTERACTION_TYPE_DISMISS))
-                                getContentResolver().insert(Provider.Notifications_Data.CONTENT_URI, helper.get(items.get(i).sqlite_id).toSyncableContentValues(context));
-
-                            ContentValues synced = new ContentValues();
-                            synced.put(UnsyncedData.Notifications_Table.synced, "1");
-                            helper.updateEntry(context, (int) items.get(i).sqlite_id, synced);
-
                             items.remove(i);
                             notifyDataSetChanged();
                             updateNumPredictions();
-                            closeDbConnection();
                         }
                     },400);
+                    closeDbConnection();
                 }
             });
 

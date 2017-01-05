@@ -175,7 +175,7 @@ public class ContentAnalysisService extends Service {
         private Instances buildTrainingData(Context c, int num_clusters) {
             // unsupervised training
             String[] options = new String[1];
-            options[0] = "-U";
+            options[0] = "-C 0.33";
             tree = new J48();
             try {
                 tree.setOptions(options);
@@ -478,5 +478,4 @@ public class ContentAnalysisService extends Service {
         super.onDestroy();
         Log.d(TAG, "ContentAnalysisService finished and destroyed");
     }
-
 }

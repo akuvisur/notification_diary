@@ -566,8 +566,6 @@ public class NotificationListener extends NotificationListenerService {
     HashMap<StatusBarNotification, String> interactionForegroundApplications = new HashMap<>();
     public void onNotificationRemoved(StatusBarNotification sbn) {
         String packageName = sbn.getPackageName();
-        new UnsyncedData(context).syncAlltoProvider(context);
-
         if (!AppManagement.BLACKLIST.contains(packageName)) {
             new Thread(new StatusBarNotificationCheckedRunnable(sbn, System.currentTimeMillis())).start();
         }

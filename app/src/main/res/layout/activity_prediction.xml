@@ -12,15 +12,22 @@
         android:orientation="horizontal"
         android:background="@color/colorPrimaryDark"
         android:padding="6dp">
-
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/predact_rejectall"
+            android:layout_gravity="left"
+            android:text="REJECT ALL"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Total # predictions"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textColor="@color/colorPrimaryLight"
             android:layout_centerVertical="true"
-            android:layout_alignParentStart="true"
+            android:layout_toEndOf="@id/predact_rejectall"
             android:layout_toStartOf="@+id/predact_acceptall"
             android:id="@+id/num_predictions"/>
 

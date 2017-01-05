@@ -640,7 +640,14 @@ public class MainTabs extends AppCompatActivity {
 
         updateRemainingNotifications(c);
 
-        if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(context)) > AppManagement.SYNC_DELAY) new UnsyncedData(context).syncAlltoProvider(context);
+        if ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(context)) > AppManagement.SYNC_DELAY) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    new UnsyncedData(context).syncAlltoProvider(context);
+                }
+            }).run();
+        }
 
         if (remainingNotifications.size() == 0) {
             if (!DEBUG) diary_content_layout.setVisibility(View.INVISIBLE);
@@ -883,6 +890,14 @@ public class MainTabs extends AppCompatActivity {
             );
 
             modelInfo.close();
+
+            initDbConnection();
+            launch_pred_act.setText("VIEW PREDICTED NOTIFICATIONS (" + helper.getPredictions(context).size() + ")");
+            UnsyncedData.ContentImportance importances = helper.getContentImportance(context);
+            important_words.setText(importances.importantToString());
+            unimportant_words.setText(importances.unimportantToString());
+            closeDbConnection();
+
             curPredictionRootView.findViewById(R.id.prediction_parent_view_enabled).invalidate();
         }
         else {

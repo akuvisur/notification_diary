@@ -88,9 +88,6 @@ public class Provider extends ContentProvider {
     }
 
     public static final class Predictions_Data implements AWAREColumns {
-        private Predictions_Data() {
-        }
-
         public static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY + "/" + DB_TBL_PREDICTIONS);
         public static final String CONTENT_TYPE = ContentResolver.CURSOR_DIR_BASE_TYPE + "vnd.android.cursor.dir/vnd.aware.plugin.notificationdiary";
         public static final String CONTENT_ITEM_TYPE = ContentResolver.CURSOR_ITEM_BASE_TYPE + "vnd.android.cursor.item/vnd.aware.plugin.notificationdiary";

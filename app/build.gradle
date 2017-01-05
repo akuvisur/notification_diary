@@ -6,14 +6,14 @@ group = "com.awareframework"
 
 android {
     compileSdkVersion 25
-    buildToolsVersion '25.0.1'
+    buildToolsVersion '25.0.2'
 
     defaultConfig {
         applicationId "com.aware.plugin.notificationdiary"
         minSdkVersion 21
         targetSdkVersion 25
-        versionCode 11
-        versionName "chocolate strawberry"
+        versionCode 12
+        versionName "chocolate grape"
         multiDexEnabled true
     }
 
@@ -45,14 +45,13 @@ configurations.all {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    //compile "com.awareframework:aware-core:${aware_libs}@aar"
     compile 'com.github.denzilferreira:aware-client:development-SNAPSHOT'
     compile 'com.github.denzilferreira:com.aware.plugin.google.fused_location:development-SNAPSHOT'
-    compile 'com.android.support:design:25.0.1'
+    compile 'com.android.support:design:25.1.0'
     compile 'com.android.support:multidex:1.0.1'
     compile 'com.google.android.gms:play-services:10.0.1'
     compile 'com.akexorcist:RoundCornerProgressBar:2.0.3'
-    compile 'com.android.support:support-v4:25.0.1'
+    compile 'com.android.support:support-v4:25.1.0'
     compile 'nz.ac.waikato.cms.weka:weka-dev:3.7.10'
 }
 

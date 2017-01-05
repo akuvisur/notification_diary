@@ -53,7 +53,7 @@ public class AppManagement {
     public static final String CONDITIONS_ACCEPTED = "CONDITIONS_ACCEPTED";
 
     public static final String SYNC_TIME = "SYNC_TIME";
-    public static final long SYNC_DELAY = 300000;
+    public static final long SYNC_DELAY = 3000;
 
     public static final String SOUND_CONTROL_ALLOWED = "SOUND_CONTROL_ALLOWED";
     public static final String SELF_NOTIFICATIONS_HIDDEN = "SELF_NOTIFICATIONS_HIDDEN";

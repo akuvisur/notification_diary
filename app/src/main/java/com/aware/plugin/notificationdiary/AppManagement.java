@@ -86,9 +86,11 @@ public class AppManagement {
         BLACKLIST.add("com.facebook.orca");
         // notifications launch different application (appstore)
         BLACKLIST.add("com.android.providers.downloads");
-
-        // this application :)
-        //BLACKLIST.add("com.aware.plugin.notificationdiary");
+        // clock notifications always use full screen activities anyway
+        BLACKLIST.add("com.sec.android.app.clockpackage");
+        // call
+        BLACKLIST.add("com.android.incallui");
+        BLACKLIST.add("android");
     }
 
     public static Boolean predictionsEnabled(Context c) {

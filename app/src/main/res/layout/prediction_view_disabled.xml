@@ -31,4 +31,10 @@
 
         <include layout="@layout/classifier_progress"/>
 
+    <TextView
+        android:text="Why do I need so to label so many notifications? Notification Diary is tracking multiple things, it takes time to learn all situations in which notifications arrive"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView13" />
+
 </LinearLayout>

@@ -154,7 +154,7 @@ public class TutorialActivity extends AppCompatActivity {
                 });
                 else {
                     battery_optimisation.setEnabled(false);
-                    battery_optimisation.setText("Too old android version");
+                    battery_optimisation.setText("Incorrect android version for battery optimisation");
                 }
                 permissions_ok = checkPermissions(c);
                 accessibility_ok = checkAccessibility(c);

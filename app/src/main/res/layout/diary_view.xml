@@ -221,6 +221,12 @@
                 android:padding="6dp"
                 />
 
+            <TextView
+                android:text="The contents of notifications (text) is only stored locally on your device and never uploaded to a server."
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/textView9" />
+
         </LinearLayout>
     </RelativeLayout>
     </LinearLayout>

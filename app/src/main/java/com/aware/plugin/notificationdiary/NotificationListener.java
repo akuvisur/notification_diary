@@ -491,6 +491,7 @@ public class NotificationListener extends NotificationListenerService {
 
         ContentValues c = new ContentValues();
         c.put(UnsyncedData.Notifications_Table.application_package, unsynced.application_package);
+        c.put(UnsyncedData.Notifications_Table.foreground_application_package, FOREGROUND_APP_PACKAGE);
         c.put(UnsyncedData.Notifications_Table.notification_id, unsynced.notification_id);
         c.put(UnsyncedData.Notifications_Table.title, unsynced.title);
         c.put(UnsyncedData.Notifications_Table.message, unsynced.message);

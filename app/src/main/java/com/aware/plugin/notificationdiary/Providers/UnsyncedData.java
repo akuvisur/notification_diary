@@ -547,11 +547,11 @@ public class UnsyncedData extends SQLiteOpenHelper {
                     // dismissed and labeled/skipped, and verified
                     if (interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) &&
                             cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) != 0 &&
-                            cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > 0) {
+                            cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > -1) {
                         sync = true;
                     }
                     // not dismissed and prediction verified
-                    else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) && cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > 0) {
+                    else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) && cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > -1) {
                         sync = true;
                     }
                     else if (interaction.equals(AppManagement.INTERACTION_TYPE_REPLACE)) sync = true;

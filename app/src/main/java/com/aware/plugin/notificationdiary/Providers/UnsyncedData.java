@@ -602,6 +602,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
             cursor.close();
         }
 
+        init();
         database.beginTransaction();
 
         ContentValues values = new ContentValues();

@@ -2,15 +2,18 @@ package com.aware.plugin.notificationdiary;
 
 import android.Manifest;
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.app.AlertDialog;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.media.AudioManager;
 import android.media.RingtoneManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -47,7 +50,10 @@ import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.RatingBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -258,6 +264,7 @@ public class MainTabs extends AppCompatActivity {
                 Aware.stopLocations(this);
                 Aware.stopPlugin(this, "com.aware.plugin.google.fused_location");
                 Toast.makeText(this, "Please allow all permissions and restart application.", Toast.LENGTH_LONG).show();
+                return;
             }
             if (diaryViewGenerated) refreshDiaryFragment(context);
             if (predictionViewGenerated) refreshPredictionView(context);
@@ -836,6 +843,21 @@ public class MainTabs extends AppCompatActivity {
                     c.startService(srvIntent);
 
                     AppManagement.startDailyModel(c);
+
+                    AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                    builder.setTitle("Predictions enabled");
+                    builder.setMessage("After predictions are enabled, your volume settings will be temporarily muted. When you have an arriving call or a new notification, the volume or vibration is restored back to normal. You can control this from SETTINGS menu");
+                    builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+                    ImageView image = new ImageView(context);
+                    image.setImageResource(R.drawable.sound_manager_design);
+                    builder.setIcon(R.mipmap.ic_launcher);
+                    builder.setView(image);
+                    AlertDialog dialog = builder.create();
+                    dialog.show();
                 }
             });
             int training_data_amount = helper.getNumOfTrainingData();
@@ -943,6 +965,11 @@ public class MainTabs extends AppCompatActivity {
     CheckBox notifications_hidden;
     CheckBox sound_control_allowed;
     TextView device_id;
+    RadioGroup ringer_mode;
+    RadioButton ringer_mode_normal;
+    RadioButton ringer_mode_vibrate;
+    RadioButton ringer_mode_silent;
+
     public View generateSettingsView(final Context context, final LayoutInflater inflater, final ViewGroup container) {
         final View rootView = inflater.inflate(R.layout.settings, container, false);
         notifications_hidden = (CheckBox) rootView.findViewById(R.id.settings_selfnotification);
@@ -957,6 +984,40 @@ public class MainTabs extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 AppManagement.setSoundControlAllowed(context, b);
+            }
+        });
+        ringer_mode = (RadioGroup) rootView.findViewById(R.id.settings_ringer);
+        ringer_mode_normal = (RadioButton) rootView.findViewById(R.id.ringer_mode_normal);
+        ringer_mode_vibrate = (RadioButton) rootView.findViewById(R.id.ringer_mode_vibrate);
+        ringer_mode_silent = (RadioButton) rootView.findViewById(R.id.ringer_mode_silent);
+        // 2 = normal, 1 = vibrate, 0 = silent
+        switch(AppManagement.getRingerMode(context)) {
+            case 2:
+                ringer_mode_normal.setChecked(true);
+                break;
+            case 1:
+                ringer_mode_vibrate.setChecked(true);
+                break;
+            case 0:
+                ringer_mode_silent.setChecked(true);
+                break;
+            default:
+                ringer_mode_normal.setChecked(true);
+        }
+        ringer_mode.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(RadioGroup group, int checkedId) {
+                switch(checkedId) {
+                    case R.id.ringer_mode_normal:
+                        AppManagement.storeNewRingerMode(context, 2, AppManagement.getSoundVolume(context));
+                        break;
+                    case R.id.ringer_mode_silent:
+                        AppManagement.storeNewRingerMode(context, 0, AppManagement.getSoundVolume(context));
+                        break;
+                    case R.id.ringer_mode_vibrate:
+                        AppManagement.storeNewRingerMode(context, 1, AppManagement.getSoundVolume(context));
+                        break;
+                }
             }
         });
 

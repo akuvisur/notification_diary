@@ -40,6 +40,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.aware.Applications;
+import com.aware.Aware;
 import com.aware.Network;
 import com.aware.Screen;
 import com.aware.plugin.google.fused_location.*;
@@ -55,6 +56,9 @@ import com.aware.plugin.notificationdiary.Providers.*;
 import com.aware.providers.Applications_Provider;
 import com.aware.providers.Battery_Provider;
 import com.aware.providers.Screen_Provider;
+import com.aware.utils.Scheduler;
+
+import org.json.JSONException;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -305,29 +309,47 @@ public class NotificationListener extends NotificationListenerService {
         super.onStartCommand(intent, flags, something);
         context = this;
 
-        if (statusMonitor == null) { //not set yet
-            statusMonitor = new Intent(this, NotificationListener.class);
-            statusMonitor.setAction(ACTION_KEEP_ALIVE);
-            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, statusMonitor, PendingIntent.FLAG_UPDATE_CURRENT);
+        Aware.startScheduler(this);
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-                        repeatingIntent);
-            } else {
-                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
-                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-                        AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-                        repeatingIntent);
-            }
-        } else { //already set, schedule the next one if API23+. If < API23, it's a repeating alarm, so no need to set it again.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_KEEP_ALIVE))) {
-                //set the alarm again to the future for API 23, works even if under Doze
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-                        repeatingIntent);
-            }
+        try {
+            Scheduler.Schedule sch = Scheduler.getSchedule(this, "restart_notificationlistener");
+            if (sch == null) {
+                sch = new Scheduler.Schedule("restart_notificationlistener");
+                sch.setActionClass(getPackageName() + "/" + getClass().getName())
+                        .setActionType(Scheduler.ACTION_TYPE_SERVICE)
+                        .setInterval(15);
+                Scheduler.saveSchedule(this, sch);
+            } else {}
+
         }
+        catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+
+//        if (statusMonitor == null) { //not set yet
+//            statusMonitor = new Intent(this, NotificationListener.class);
+//            statusMonitor.setAction(ACTION_KEEP_ALIVE);
+//            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, statusMonitor, PendingIntent.FLAG_UPDATE_CURRENT);
+//
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+//                        repeatingIntent);
+//            } else {
+//                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
+//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+//                        AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+//                        repeatingIntent);
+//            }
+//        } else { //already set, schedule the next one if API23+. If < API23, it's a repeating alarm, so no need to set it again.
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_KEEP_ALIVE))) {
+//                //set the alarm again to the future for API 23, works even if under Doze
+//                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+//                        repeatingIntent);
+//            }
+//        }
         initDbConnection();
         helper.syncAlltoProvider(this);
         closeDbConnection();
@@ -648,6 +670,7 @@ public class NotificationListener extends NotificationListenerService {
                 updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_DISMISS);
             }
 
+            initDbConnection();
             helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values);
 
             interactionForegroundApplications.remove(sbn);

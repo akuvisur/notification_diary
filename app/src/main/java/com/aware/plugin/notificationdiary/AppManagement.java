@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.SystemClock;
@@ -17,6 +18,7 @@ import android.widget.Toast;
 
 //import com.neura.sdk.object.Permission;
 
+import com.aware.Aware;
 import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
 import com.aware.plugin.notificationdiary.Providers.WordBins;
 
@@ -74,13 +76,8 @@ public class AppManagement {
     //public static final ArrayList<Permission> neuraPermissions = Permission.list(new String[]{"userArrivedHome", "userArrivedToWork", "userArrivedAtCafe", "userArrivedAtHospital", "userArrivedAtAirport", "userArrivedAtSchoolCampus", "userArrivedAtGroceryStore"});
 
     public static ArrayList<String> BLACKLIST = new ArrayList<>();
-    static SharedPreferences sp;
-    static SharedPreferences.Editor spe;
 
     public static void init(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        //spe = sp.edit();
-
         BLACKLIST.add("android");
         // messaging action button does not launch an activity so dismiss/click is uncertain
         BLACKLIST.add("com.facebook.orca");
@@ -94,43 +91,33 @@ public class AppManagement {
     }
 
     public static Boolean predictionsEnabled(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getBoolean(PREDICTIONS_ENABLED, false);
+        return Aware.getSetting(c, PREDICTIONS_ENABLED).equals("true");
     }
 
     public static void enablePredictions(Context c, boolean enabled) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-        spe.putBoolean(PREDICTIONS_ENABLED, enabled);
-        spe.apply();
-
+        Aware.setSetting(c, PREDICTIONS_ENABLED, enabled);
         setOwnNotificationsHidden(c, true);
-        setSoundControlAllowed(c, enabled);
+        setSoundControlAllowed(c, false);
     }
 
     public static void storeNumClusters(int num_clusters, Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-
-        spe.putInt(NUM_CLUSTERS, num_clusters);
-        spe.apply();
+        Aware.setSetting(c, NUM_CLUSTERS, num_clusters);
     }
 
     public static int getNumClusters(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getInt(NUM_CLUSTERS, 15);
+        String value = Aware.getSetting(c, NUM_CLUSTERS);
+        if (value.equals("")) return 10;
+        else return Integer.valueOf(value);
     }
 
     public static void setSyncTimestamp(Context c, long timestamp) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-        spe.putLong(SYNC_TIME, timestamp);
-        spe.apply();
+        Aware.setSetting(c, SYNC_TIME, timestamp);
     }
 
     public static long getSyncTimestamp(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getLong(SYNC_TIME, System.currentTimeMillis());
+        String value = Aware.getSetting(c, SYNC_TIME);
+        if (value.equals("")) return System.currentTimeMillis();
+        else return Long.valueOf(value);
     }
 
     static Calendar calendar = null;
@@ -175,22 +162,20 @@ public class AppManagement {
     }
 
     public static void storeNewRingerMode(Context c, int mode, int volume) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-
-        spe.putInt(RINGER_MODE, mode);
-        spe.putInt(SOUND_VOLUME, volume);
-        spe.apply();
+        Aware.setSetting(c, RINGER_MODE, mode);
+        Aware.setSetting(c, SOUND_VOLUME, volume);
     }
 
     public static int getRingerMode(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getInt(RINGER_MODE, AudioManager.RINGER_MODE_VIBRATE);
+        String value = Aware.getSetting(c, RINGER_MODE);
+        if (value.equals("")) return AudioManager.RINGER_MODE_VIBRATE;
+        else return Integer.valueOf(value);
     }
 
     public static int getSoundVolume(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getInt(SOUND_VOLUME, 0);
+        String value = Aware.getSetting(c, SOUND_VOLUME);
+        if (value.equals("")) return 0;
+        else return Integer.valueOf(value);
     }
 
     public static int getRandomNumberInRange(int min, int max) {
@@ -203,54 +188,47 @@ public class AppManagement {
     }
 
     public static void setSoundControlAllowed(Context c, boolean soundControlAllowed) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-        spe.putBoolean(SOUND_CONTROL_ALLOWED, soundControlAllowed);
-        spe.apply();
+        Aware.setSetting(c, SOUND_CONTROL_ALLOWED, soundControlAllowed);
         Intent soundControl = new Intent(c, NotificationAlarmManager.class);
         if (soundControlAllowed) c.startService(soundControl);
         else c.stopService(soundControl);
     }
 
     public static boolean getSoundControlAllowed(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getBoolean(SOUND_CONTROL_ALLOWED, true);
+        String value = Aware.getSetting(c, SOUND_CONTROL_ALLOWED);
+        if (value.equals("")) return false;
+        else return value.equals("true");
     }
 
     public static void setOwnNotificationsHidden(Context c, boolean ownNotificationsHidden) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-        spe.putBoolean(SELF_NOTIFICATIONS_HIDDEN, ownNotificationsHidden);
-        spe.apply();
+        Aware.setSetting(c, SELF_NOTIFICATIONS_HIDDEN, ownNotificationsHidden);
     }
 
+    // dont allow hiding own notifications by default
     public static boolean getOwnNotificationsHidden(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getBoolean(SELF_NOTIFICATIONS_HIDDEN, false);
+        String value = Aware.getSetting(c, SELF_NOTIFICATIONS_HIDDEN);
+        if (value.equals("")) return true;
+        else return value.equals("true");
     }
 
     public static boolean isFirstLaunch(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getBoolean(FIRST_LAUNCH, true);
+        String value = Aware.getSetting(c, FIRST_LAUNCH);
+        if (value.equals("")) return true;
+        else return value.equals("true");
     }
 
     public static void setFirstLaunch(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-        spe.putBoolean(FIRST_LAUNCH, false);
-        spe.apply();
+        Aware.setSetting(c, FIRST_LAUNCH, false);
     }
 
     public static boolean conditionsAccepted(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getBoolean(CONDITIONS_ACCEPTED, false);
+        String value = Aware.getSetting(c, CONDITIONS_ACCEPTED);
+        if (value.equals("")) return false;
+        else return value.equals("true");
     }
 
     public static void acceptConditions(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-        spe.putBoolean(CONDITIONS_ACCEPTED, true);
-        spe.apply();
+        Aware.setSetting(c, CONDITIONS_ACCEPTED, true);
     }
 
     public static void startDailyModel(Context c) {
@@ -275,15 +253,13 @@ public class AppManagement {
 
     private static final String TUTORIAL_PAGE = "TUTORIAL_PAGE";
     public static void setTutorialPage(Context c, int page) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        spe = sp.edit();
-        spe.putInt(TUTORIAL_PAGE, page);
-        spe.apply();
+        Aware.setSetting(c, TUTORIAL_PAGE, page);
     }
 
     public static int getTutorialPage(Context c) {
-        sp = c.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        return sp.getInt(TUTORIAL_PAGE, 1);
+        String value = Aware.getSetting(c, TUTORIAL_PAGE);
+        if (value.equals("")) return 1;
+        else return Integer.valueOf(value);
     }
 
     public static class MapUtil

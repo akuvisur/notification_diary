@@ -214,6 +214,14 @@ public class PredictionActivity extends AppCompatActivity {
         }
     }
 
-
+    @Override
+    public void onDestroy() {
+        initDbConnection();
+        int count = (helper.getPredictions(context).size() + helper.countUnlabeledNotifications());
+        if (count > 0) BadgeUtils.setBadge(context, count);
+        else BadgeUtils.clearBadge(context);
+        closeDbConnection();
+        super.onDestroy();
+    }
 
 }

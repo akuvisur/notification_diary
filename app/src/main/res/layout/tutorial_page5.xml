@@ -32,4 +32,10 @@ Click next to continue the tutorial or previous to return to previous page."
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView98" />
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:srcCompat="@drawable/sound_manager_design"
+        android:id="@+id/imageView99" />
 </LinearLayout>

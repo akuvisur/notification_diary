@@ -16,6 +16,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Vibrator;
+import android.provider.MediaStore;
 import android.support.annotation.Nullable;
 import android.telephony.TelephonyManager;
 import android.util.Log;
@@ -63,11 +64,13 @@ public class NotificationAlarmManager extends Service {
         context = this;
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         Log.d(TAG, "alarm manager created");
+        private_ringer_change = System.currentTimeMillis();
     }
 
     private long lastCue = System.currentTimeMillis();
 
-    boolean private_ringer_change = false;
+    private final int RINGER_CHANGE_DELAY = 10000;
+    long private_ringer_change = 0;
     boolean ringer_mode_change_waiting = false;
 
     SettingsContentObserver mSettingsContentObserver;
@@ -84,41 +87,44 @@ public class NotificationAlarmManager extends Service {
         if (ringerReceiver == null) ringerReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(final Context context, Intent intent) {
+                if (!AppManagement.getSoundControlAllowed(context)) return;
                 main_selector:
                 if (intent.getAction().equals(AudioManager.RINGER_MODE_CHANGED_ACTION)) {
-
                     // if sound control not allowed but this service still running for reason x
                     if (!AppManagement.getSoundControlAllowed(context)) break main_selector;
-                    // if ringer mode change was due to this application, dont override default mode
-                    if (private_ringer_change) break main_selector;
-                    else {
-                        final AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                        Log.d(TAG, "storing new ringer mode: " + am.getRingerMode());
-                        AppManagement.storeNewRingerMode(context, am.getRingerMode(), am.getStreamVolume(AudioManager.STREAM_NOTIFICATION));
-
+                    // if at least second since the last private ringer change, store this mode as the default mode
+                    if (System.currentTimeMillis() - private_ringer_change > 1000) {
+                        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                        store(am.getRingerMode());
                         if (!ringer_mode_change_waiting) {
                             new Handler().postDelayed(new Runnable() {
                                 @Override
                                 public void run() {
-                                    if (!AppManagement.getSoundControlAllowed(context)) return;
-                                    mute();
+                                    mute(null);
                                 }
-                            }, 10000);
+                            }, RINGER_CHANGE_DELAY);
                         }
                         ringer_mode_change_waiting = true;
-
-                        Log.d(TAG, "vibrate mode: " + am.getVibrateSetting(AudioManager.VIBRATE_TYPE_NOTIFICATION));
                     }
+
+                }
+                // calendar reminder
+                else if (intent.getAction().equals("EVENT_REMINDER_ACTION")) {
+                    private_ringer_change = System.currentTimeMillis();
+                    int ringer_mode = AppManagement.getRingerMode(context);
+                    AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                    am.setRingerMode(ringer_mode);
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            mute(null);
+                        }
+                    }, RINGER_CHANGE_DELAY);
                 }
                 else if (intent.getAction().equals(SEND_NOTIFICATION_CUE)) {
-
-                    Log.d(TAG, "RECEIVED CUE EMITTER THING");
-                    private_ringer_change = true;
                     if ((System.currentTimeMillis() - lastCue) > 2500) {
                         Log.d(TAG, "no recent cues, emitting new!");
                         lastCue = System.currentTimeMillis();
-
-                        final AudioManager am = (AudioManager) context.getSystemService(AUDIO_SERVICE);
                         Uri notification_sound = null;
                         long[] vibrate_settings = null;
                         if (intent.hasExtra(NOTIFICATION_SOUND_URI)) notification_sound = (Uri) intent.getParcelableExtra(NOTIFICATION_SOUND_URI);
@@ -126,40 +132,20 @@ public class NotificationAlarmManager extends Service {
                         int ringer_mode = AppManagement.getRingerMode(context);
                         if (ringer_mode == AudioManager.RINGER_MODE_NORMAL) {
                             Log.d(TAG, "ringer mode was normal");
-                            private_ringer_change = true;
-                            am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, AppManagement.getSoundVolume(context), 0);
-                            am.setRingerMode(ringer_mode);
-                            Log.d(TAG, "notification_sound: " + notification_sound);
                             if (notification_sound != null) sendSound(notification_sound);
                             else if (vibrate_settings != null) {
                                 vibrate(vibrate_settings, 1);
                             }
-                            new Handler().postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mute();
-                                }
-                            }, 500);
                         } else if (ringer_mode == AudioManager.RINGER_MODE_VIBRATE) {
                             Log.d(TAG, "ringer mode was vibrate, vibrating");
-                            private_ringer_change = true;
-                            am.setRingerMode(ringer_mode);
                             if (notification_sound != null && vibrate_settings != null) vibrate(vibrate_settings, 1);
-                            else if (vibrate_settings == null) vibrate(new long[]{250}, 1);
-
-                            new Handler().postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mute();
-                                }
-                            }, 500);
+                            else if (vibrate_settings == null) vibrate(250);
                         }
                         else if (ringer_mode == AudioManager.RINGER_MODE_SILENT) {
                             Log.d(TAG, "ringer mode was silent");
                             // no cue if silent;
                         }
                     }
-                    private_ringer_change = false;
                 }
             }
         };
@@ -186,58 +172,54 @@ public class NotificationAlarmManager extends Service {
         filt.addAction(AudioManager.RINGER_MODE_CHANGED_ACTION);
         filt.addAction(SEND_NOTIFICATION_CUE);
         filt.addAction(ACTION_MODE_CHANGED_FROM_NOTIFICATION_DIARY);
+        filt.addAction("EVENT_REMINDER_ACTION");
 
         registerReceiver(ringerReceiver, filt);
 
-        mute();
+        mute(null);
 
-        Aware.startScheduler(this);
-
-        try {
-            Scheduler.Schedule sch = Scheduler.getSchedule(this, "restart_alarmmanager");
-            if (sch == null) {
-                sch = new Scheduler.Schedule("restart_alarmmanager");
-                sch.setActionClass(getPackageName() + "/" + getClass().getName())
-                        .setActionType(Scheduler.ACTION_TYPE_SERVICE)
-                        .setInterval(15);
-                Scheduler.saveSchedule(this, sch);
-            } else {}
-
-        }
-        catch (JSONException e) {
-            e.printStackTrace();
-        }
-
+//        Aware.startScheduler(this);
 //
-//        if (statusMonitor == null) { //not set yet
-//            statusMonitor = new Intent(this, NotificationAlarmManager.class);
-//            statusMonitor.setAction(ACTION_KEEP_ALIVE);
-//            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, statusMonitor, PendingIntent.FLAG_UPDATE_CURRENT);
+//        try {
+//            Scheduler.Schedule sch = Scheduler.getSchedule(this, "restart_alarmmanager");
+//            if (sch == null) {
+//                sch = new Scheduler.Schedule("restart_alarmmanager");
+//                sch.setActionClass(getPackageName() + "/" + getClass().getName())
+//                        .setActionType(Scheduler.ACTION_TYPE_SERVICE)
+//                        .setInterval(15);
+//                Scheduler.saveSchedule(this, sch);
+//            } else {}
 //
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-//                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-//                        repeatingIntent);
-//            } else {
-//                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
-//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-//                        AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-//                        repeatingIntent);
-//            }
-//        } else { //already set, schedule the next one if API23+. If < API23, it's a repeating alarm, so no need to set it again.
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_KEEP_ALIVE))) {
-//                //set the alarm again to the future for API 23, works even if under Doze
-//                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-//                        repeatingIntent);
-//            }
 //        }
-//
-//
-//        //new ToastRunnable(this, "Notification Diary: Alarm Manager initiated", Toast.LENGTH_SHORT).run();
-//
-//
-//
+//        catch (JSONException e) {
+//            e.printStackTrace();
+//        }
+
+        if (statusMonitor == null) { //not set yet
+            statusMonitor = new Intent(this, NotificationAlarmManager.class);
+            statusMonitor.setAction(ACTION_KEEP_ALIVE);
+            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, statusMonitor, PendingIntent.FLAG_UPDATE_CURRENT);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            } else {
+                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            }
+        } else { //already set, schedule the next one if API23+. If < API23, it's a repeating alarm, so no need to set it again.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_KEEP_ALIVE))) {
+                //set the alarm again to the future for API 23, works even if under Doze
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            }
+        }
+
+        //new ToastRunnable(this, "Notification Diary: Alarm Manager initiated", Toast.LENGTH_SHORT).run();
         mSettingsContentObserver = new SettingsContentObserver( new Handler() );
         this.getApplicationContext().getContentResolver().registerContentObserver(
                 android.provider.Settings.System.CONTENT_URI, true,
@@ -246,28 +228,67 @@ public class NotificationAlarmManager extends Service {
         return START_STICKY;
     }
 
-    private void mute() {
-        private_ringer_change = true;
-        Handler handler = new Handler(Looper.getMainLooper());
-        handler.post(new ToastRunnable(context, "Notification Diary set ringer mode to silent until next call or notification", Toast.LENGTH_LONG));
+    private void mute(Integer old_mode) {
         if (AppManagement.getSoundControlAllowed(this)) {
+            // store current
+            private_ringer_change = System.currentTimeMillis();
+
+            // mute
+            //Handler handler = new Handler(Looper.getMainLooper());
+            //handler.post(new ToastRunnable(context, "Notification Diary set ringer mode to silent until next call or notification", Toast.LENGTH_LONG));
             AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             am.setVibrateSetting(AudioManager.VIBRATE_TYPE_NOTIFICATION, AudioManager.VIBRATE_SETTING_OFF);
             am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0);
             am.setRingerMode(AudioManager.RINGER_MODE_SILENT);
-            private_ringer_change = false;
+
+            ringer_mode_change_waiting = false;
         }
     }
 
+    private final long DEFAULT_MUTE_DELAY = 2000;
+    private void vibrate(long duration) {
+        private_ringer_change = System.currentTimeMillis();
+        Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+        v.vibrate(duration);
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mute(AppManagement.getRingerMode(context));
+            }
+        }, DEFAULT_MUTE_DELAY);
+    }
+
     private void vibrate(long[] duration, int repeats) {
-        private_ringer_change = true;
+        private_ringer_change = System.currentTimeMillis();
         Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
         v.vibrate(duration, repeats);
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mute(AppManagement.getRingerMode(context));
+            }
+        }, DEFAULT_MUTE_DELAY);
     }
 
     private void sendSound(Uri sound) {
-        private_ringer_change = true;
+        private_ringer_change = System.currentTimeMillis();
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, AppManagement.getSoundVolume(context), 0);
+        am.setRingerMode(AppManagement.getRingerMode(context));
+
         RingtoneManager.getRingtone(context, sound).play();
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mute(AudioManager.RINGER_MODE_NORMAL);
+            }
+        }, DEFAULT_MUTE_DELAY);
+    }
+
+    private void store(int mode) {
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        Log.d(TAG, "storing new ringer mode: " + mode);
+        AppManagement.storeNewRingerMode(context, mode, am.getStreamVolume(AudioManager.STREAM_NOTIFICATION));
     }
 
     @Override
@@ -275,6 +296,8 @@ public class NotificationAlarmManager extends Service {
         if (ringerReceiver != null) unregisterReceiver(ringerReceiver);
         if (callReceiver != null) unregisterReceiver(callReceiver);
         if (mSettingsContentObserver != null) this.getApplicationContext().getContentResolver().unregisterContentObserver(mSettingsContentObserver);
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        am.setRingerMode(AppManagement.getRingerMode(this));
     }
 
     @Nullable
@@ -288,23 +311,22 @@ public class NotificationAlarmManager extends Service {
         @Override
         public void onReceive(final Context context, Intent intent) {
             String stateStr = intent.getExtras().getString(TelephonyManager.EXTRA_STATE);
-            private_ringer_change = true;
             if(stateStr.equals(TelephonyManager.EXTRA_STATE_IDLE)){
+                private_ringer_change = System.currentTimeMillis();
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                        AppManagement.storeNewRingerMode(context, am.getRingerMode(), am.getStreamVolume(AudioManager.STREAM_NOTIFICATION));
-                        mute();
+                        mute(am.getRingerMode());
                     }
-                },2000);
+                }, DEFAULT_MUTE_DELAY);
             }
             else if(stateStr.equals(TelephonyManager.EXTRA_STATE_RINGING)){
+                private_ringer_change = System.currentTimeMillis();
                 int ringer_mode = AppManagement.getRingerMode(context);
                 AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
                 am.setRingerMode(ringer_mode);
             }
-            private_ringer_change = false;
         }
     }
 
@@ -321,6 +343,7 @@ public class NotificationAlarmManager extends Service {
         @Override
         public void onChange(boolean selfChange) {
             super.onChange(selfChange);
+            private_ringer_change = System.currentTimeMillis();
             final AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             AppManagement.storeNewRingerMode(context, AppManagement.getRingerMode(context), am.getStreamVolume(AudioManager.STREAM_NOTIFICATION));
         }

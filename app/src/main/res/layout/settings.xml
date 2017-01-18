@@ -1,22 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fadeScrollbars="false"
     android:scrollbarAlwaysDrawVerticalTrack="true">
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginBottom="0dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="6dp"
-                android:layout_marginBottom="6dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -29,6 +25,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:src="@drawable/sound_manager_design"
+                    android:layout_margin="0dp"
+                    android:padding="0dp"
                     />
             </LinearLayout>
 
@@ -36,162 +34,170 @@
                 android:layout_width="match_parent"
                 android:layout_height="2dp"
                 android:background="#555555"></LinearLayout>
-
-            <RelativeLayout
+            <ScrollView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="6dp"
-                android:layout_marginBottom="6dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Allow Notification Diary to manage your volume settings"
-                    android:id="@+id/settings_volume_text"
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentStart="true"
-                    android:layout_toStartOf="@+id/settings_volume"
-                    android:maxLines="2"
-                    android:ellipsize="end"
-                    android:textSize="16sp"/>
+                android:layout_height="match_parent"
+                android:scrollbarAlwaysDrawVerticalTrack="true"
+                android:fadeScrollbars="false">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical">
 
-                <CheckBox
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:id="@+id/settings_volume"
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentEnd="true" />
-
-                <TextView
-                    android:text="After predictions are enabled, Notification Diary will turn your phone into silent ringer mode to prevent you from being distracted by constant notification sounds, and only send sound or vibrate cues when you receive an important notification or a call."
-                    android:textSize="12sp"
-                    android:layout_marginTop="4dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_below="@+id/settings_volume"
-                    android:layout_alignParentStart="true"
-                    android:layout_toEndOf="@+id/settings_volume_text"
-                    android:id="@+id/textView15" />
-            </RelativeLayout>
-
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:background="#555555"></LinearLayout>
-
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="6dp"
-                android:layout_marginBottom="6dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Your default ringer mode"
-                    android:id="@+id/settings_ringer_text"
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentStart="true"
-                    android:layout_toStartOf="@+id/settings_ringer"
-                    android:maxLines="2"
-                    android:ellipsize="end"
-                    android:textSize="16sp"/>
-
-                <RadioGroup
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:id="@+id/settings_ringer"
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentEnd="true">
-
-                    <RadioButton
-                        android:layout_width="wrap_content"
+                    <RelativeLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Normal"
-                        android:textColor="#444444"
-                        android:id="@+id/ringer_mode_normal"/>
-                    <RadioButton
-                        android:layout_width="wrap_content"
+                        android:padding="6dp">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Allow Notification Diary to manage your volume settings"
+                            android:id="@+id/settings_volume_text"
+                            android:layout_alignParentTop="true"
+                            android:layout_alignParentStart="true"
+                            android:layout_toStartOf="@+id/settings_volume"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:textSize="16sp"/>
+
+                        <CheckBox
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/settings_volume"
+                            android:layout_alignParentTop="true"
+                            android:layout_alignParentEnd="true" />
+
+                        <TextView
+                            android:text="After predictions are enabled, Notification Diary will turn your phone into silent ringer mode to prevent you from being distracted by constant notification sounds, and only send sound or vibrate cues when you receive an important notification or a call."
+                            android:textSize="12sp"
+                            android:layout_marginTop="4dp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_below="@+id/settings_volume"
+                            android:layout_alignParentStart="true"
+                            android:layout_toEndOf="@+id/settings_volume_text"
+                            android:id="@+id/textView15" />
+                    </RelativeLayout>
+
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="2dp"
+                        android:background="#555555"></LinearLayout>
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Vibrate"
-                        android:textColor="#444444"
-                        android:id="@+id/ringer_mode_vibrate"/>
-                    <RadioButton
-                        android:layout_width="wrap_content"
+                        android:padding="6dp"
+                        >
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Your default ringer mode"
+                            android:id="@+id/settings_ringer_text"
+                            android:layout_alignParentTop="true"
+                            android:layout_alignParentStart="true"
+                            android:layout_toStartOf="@+id/settings_ringer"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:textSize="16sp"/>
+
+                        <RadioGroup
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/settings_ringer"
+                            android:layout_alignParentTop="true"
+                            android:layout_alignParentEnd="true">
+
+                            <RadioButton
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Normal"
+                                android:textColor="#444444"
+                                android:id="@+id/ringer_mode_normal"/>
+                            <RadioButton
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Vibrate"
+                                android:textColor="#444444"
+                                android:id="@+id/ringer_mode_vibrate"/>
+                            <RadioButton
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Silent"
+                                android:textColor="#444444"
+                                android:id="@+id/ringer_mode_silent"/>
+
+                        </RadioGroup>
+
+                        <TextView
+                            android:text="You can select your 'default' ringer mode - the ringer mode which Notification Diary restores when you have incoming calls or notifications - here or by using the normal volume controls."
+                            android:textSize="12sp"
+                            android:layout_marginTop="4dp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_below="@+id/settings_ringer_text"
+                            android:layout_alignParentStart="true"
+                            android:layout_toEndOf="@+id/settings_ringer"
+                            android:layout_toStartOf="@+id/settings_ringer"
+                            android:id="@+id/textView177" />
+
+                    </RelativeLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="2dp"
+                        android:background="#555555"></LinearLayout>
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Silent"
-                        android:textColor="#444444"
-                        android:id="@+id/ringer_mode_silent"/>
+                        android:padding="6dp">
 
-                </RadioGroup>
+                        <CheckBox
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/settings_selfnotification"
+                            android:layout_alignParentTop="true"
+                            android:layout_alignParentEnd="true" />
 
-                <TextView
-                    android:text="You can select your 'default' ringer mode - the ringer mode which Notification Diary restores when you have incoming calls or notifications - here or by using the normal volume controls."
-                    android:textSize="12sp"
-                    android:layout_marginTop="4dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_below="@+id/settings_ringer_text"
-                    android:layout_alignParentStart="true"
-                    android:layout_toEndOf="@+id/settings_ringer"
-                    android:layout_toStartOf="@+id/settings_ringer"
-                    android:id="@+id/textView177" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Never hide notifications from this application"
+                            android:id="@+id/settings_selfnotification_text"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:textSize="16sp"
+                            android:layout_alignParentTop="true"
+                            android:layout_alignParentStart="true"
+                            android:layout_toStartOf="@id/settings_selfnotification"/>
 
-            </RelativeLayout>
+                        <TextView
+                            android:text="Whether you wish the Notification Diary to also be allowed to hide its own reminder notifications."
+                            android:textSize="12sp"
+                            android:layout_marginTop="4dp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_below="@+id/settings_selfnotification_text"
+                            android:layout_alignParentStart="true"
+                            android:layout_toEndOf="@+id/settings_selfnotification_text"
+                            android:id="@+id/textView16" />
+                    </RelativeLayout>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:background="#555555"></LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="2dp"
+                        android:background="#555555"></LinearLayout>
 
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="6dp"
-                android:layout_marginBottom="6dp">
+                    <TextView
+                        android:text=""
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/settings_device_id" />
 
-                <CheckBox
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:id="@+id/settings_selfnotification"
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentEnd="true" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Never hide notifications from this application"
-                    android:id="@+id/settings_selfnotification_text"
-                    android:maxLines="2"
-                    android:ellipsize="end"
-                    android:textSize="16sp"
-                    android:layout_alignParentTop="true"
-                    android:layout_alignParentStart="true"
-                    android:layout_toStartOf="@id/settings_selfnotification"/>
-
-                <TextView
-                    android:text="Whether you wish the Notification Diary to also be allowed to hide its own reminder notifications."
-                    android:textSize="12sp"
-                    android:layout_marginTop="4dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_below="@+id/settings_selfnotification_text"
-                    android:layout_alignParentStart="true"
-                    android:layout_toEndOf="@+id/settings_selfnotification_text"
-                    android:id="@+id/textView16" />
-            </RelativeLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:background="#555555"></LinearLayout>
-
-            <TextView
-                android:text=""
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:id="@+id/settings_device_id" />
+                </LinearLayout>
+            </ScrollView>
         </LinearLayout>
 
-    </LinearLayout>
-</ScrollView>
+</LinearLayout>

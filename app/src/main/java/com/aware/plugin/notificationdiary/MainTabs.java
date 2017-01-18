@@ -83,6 +83,7 @@ public class MainTabs extends AppCompatActivity {
     public static final String START_WITH_TAB = "START_WITH_TAB";
     public static final String DIARY_TAB = "DIARY_TAB";
     public static final String PREDICTION_TAB = "PREDICTION_TAB";
+    public static final String ENABLE_PREDICTIONS_FLAG = "ENABLE_PREDICTIONS_FLAG";
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -177,6 +178,11 @@ public class MainTabs extends AppCompatActivity {
         if (getIntent() != null & getIntent().hasExtra(START_WITH_TAB)) {
             if (getIntent().getStringExtra(START_WITH_TAB).equals(PREDICTION_TAB))  mViewPager.setCurrentItem(1);
         }
+        if (getIntent() != null & getIntent().hasExtra(ENABLE_PREDICTIONS_FLAG)) {
+            AppManagement.enablePredictions(this, true);
+        }
+
+
 
     }
 
@@ -268,6 +274,10 @@ public class MainTabs extends AppCompatActivity {
             }
             if (diaryViewGenerated) refreshDiaryFragment(context);
             if (predictionViewGenerated) refreshPredictionView(context);
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            nm.cancel(AppManagement.NOTIFICATION_UNVERIFIED_PREDICTIONS);
+            nm.cancel(AppManagement.NOTIFICATION_CAN_ENABLE_PREDICTIONS);
+            nm.cancel(AppManagement.NOTIFICATION_UNLABELED_NOTIFICATIONS);
         }
     }
 
@@ -840,6 +850,7 @@ public class MainTabs extends AppCompatActivity {
                     classifier_progress_text.setVisibility(View.VISIBLE);
 
                     Intent srvIntent = new Intent(c, ContentAnalysisService.class);
+                    srvIntent.putExtra("RETURN_TO_MAIN", true);
                     c.startService(srvIntent);
 
                     AppManagement.startDailyModel(c);

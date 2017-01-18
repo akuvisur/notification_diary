@@ -103,10 +103,6 @@ public class DiaryNotification {
         return false;
     }
 
-    public static int getHashIdentifier(int id, String pkg) {
-        return (String.valueOf(id) + String.valueOf(pkg)).hashCode();
-    }
-
     public static ArrayList<AttributeWithType> getContextVariables() {
         return CONTEXT_VARIABLES;
     }

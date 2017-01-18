@@ -137,17 +137,32 @@
                 android:id="@+id/unimportant_right_edge"></LinearLayout>
         </RelativeLayout>
 
-
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
+        >
         <Button
             android:text="VIEW PREDICTED NOTIFICATIONS"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/launch_pred_act"
-            android:layout_marginTop="8dp"
             android:background="@color/colorPrimaryLight"
-            android:padding="4dp"
-            />
-        <LinearLayout
+            android:padding="4dp" />
+
+        <TextView
+            android:text="Verify each prediction (SHOW or HIDE)."
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:textSize="12sp"
+            android:id="@+id/textView22"
+            android:gravity="start"
+            android:layout_marginStart="4dp"/>
+
+    </LinearLayout>
+
+    <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -171,8 +186,8 @@
                 android:background="@color/colorPrimaryLight"
                 android:padding="4dp"
                 />
-        </LinearLayout>
-        <include layout="@layout/classifier_progress" />
+    </LinearLayout>
+    <include layout="@layout/classifier_progress" />
 
     </LinearLayout>
 </ScrollView>

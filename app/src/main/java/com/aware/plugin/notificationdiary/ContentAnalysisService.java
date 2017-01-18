@@ -70,6 +70,8 @@ public class ContentAnalysisService extends Service {
         context = this;
     }
 
+    private boolean restartmain = false;
+
     @Override
     public int onStartCommand(Intent i, int i1, int it2) {
         Log.d(TAG, "started");
@@ -77,6 +79,8 @@ public class ContentAnalysisService extends Service {
         stopWordsFin = new ArrayList<>(Arrays.asList(Utils.readStopWords(this, R.raw.finnish)));
 
         OPTIMAL_NUM_CLUSTERS = AppManagement.getNumClusters(context);
+
+        restartmain = i.hasExtra("RETURN_TO_MAIN");
 
         new CoreRunnable(context).execute(context);
 
@@ -156,15 +160,17 @@ public class ContentAnalysisService extends Service {
             wordBins.close();
             tree_db.close();
 
-            AppManagement.enablePredictions(context, true);
 
             publishProgress(100);
 
-            Intent restartMain = new Intent(context, MainTabs.class);
-            restartMain.putExtra(MainTabs.START_WITH_TAB, MainTabs.PREDICTION_TAB);
-            restartMain.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(restartMain);
-
+            if (restartmain) {
+                Intent restartMain = new Intent(context, MainTabs.class);
+                restartMain.putExtra(MainTabs.START_WITH_TAB, MainTabs.PREDICTION_TAB);
+                restartMain.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                // enable predictions once taken back
+                restartMain.putExtra(MainTabs.ENABLE_PREDICTIONS_FLAG, true);
+                context.startActivity(restartMain);
+            }
             Intent stopIntent = new Intent(context, ContentAnalysisService.class);
             stopService(stopIntent);
 

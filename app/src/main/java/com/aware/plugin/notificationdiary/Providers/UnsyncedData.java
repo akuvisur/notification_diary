@@ -246,6 +246,29 @@ public class UnsyncedData extends SQLiteOpenHelper {
         return result;
     }
 
+    public ArrayList<UnsyncedNotification> getArrivedNotifications() {
+        init();
+        ArrayList<UnsyncedNotification> result = new ArrayList();
+        Cursor cursor = database.query(DATABASE_NAME,
+                null,
+                Notifications_Table.interaction_type + " == NULL",
+                null,null, null,
+                UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                UnsyncedNotification u = new UnsyncedNotification();
+                u.sqlite_row_id = cursor.getLong(cursor.getColumnIndex(Notifications_Table._ID));
+                u.message = cursor.getString(cursor.getColumnIndex(Notifications_Table.message));
+                u.title= cursor.getString(cursor.getColumnIndex(Notifications_Table.title));
+                u.application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package));
+                u.notification_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table.notification_id));
+                if (!result.contains(u)) result.add(u);
+            }
+            cursor.close();
+        }
+        return result;
+    }
+
     public synchronized int countUnlabeledNotifications() {
         init();
         int count = 0;
@@ -464,6 +487,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         int predicted;
         int verified;
         String interaction;
+        ArrayList<Long> duplicate_ids = new ArrayList<>();
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 interaction = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
@@ -471,7 +495,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 predicted = cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
                 verified = cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
 
-                if (predictedInteractions.contains(interaction) && predicted > -1 && verified < 0) {
+                if (predictedInteractions.contains(interaction) && predicted > -1 && verified == -1) {
                     Prediction p = new Prediction(
                             cursor.getString(cursor.getColumnIndex(Notifications_Table.message)),
                             cursor.getString(cursor.getColumnIndex(Notifications_Table.title)),
@@ -482,8 +506,12 @@ public class UnsyncedData extends SQLiteOpenHelper {
                             cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)),
                             cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type))
                     );
-                    // max size 40
-                    if (result.size() <= 200) result.add(p);
+                    // dont add duplicates
+                    if (result.contains(p)) {
+                        duplicate_ids.add(p.sqlite_id);
+                    }
+                    // max size 50
+                    else if (result.size() <= 50) result.add(p);
                     else break;
                 }
             }
@@ -492,6 +520,20 @@ public class UnsyncedData extends SQLiteOpenHelper {
         else {
             Log.d(TAG, "getPredictions null cursor");
         }
+        init();
+        try {
+            database.beginTransaction();
+            ContentValues set_as_duplicate = new ContentValues();
+            set_as_duplicate.put(Notifications_Table.prediction_correct, -2);
+            for (Long id : duplicate_ids) {
+                database.update(DATABASE_NAME, set_as_duplicate, "_id=" + id, null);
+            }
+            database.setTransactionSuccessful();
+        } finally {
+            database.endTransaction();
+        }
+
+        if (cursor != null) cursor.close();
 
         return result;
     }
@@ -544,8 +586,12 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 if (interaction == null) interaction = "";
                 // predictions were on
                 if (predicted > -1) {
+                    // if not interacted with yet
+                    if (interaction == null || (interaction != null && interaction.equals(""))) {
+                        sync = false;
+                    }
                     // dismissed and labeled/skipped, and verified
-                    if (interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) &&
+                    else if (interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) &&
                             cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) != 0 &&
                             cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > -1) {
                         sync = true;
@@ -555,6 +601,8 @@ public class UnsyncedData extends SQLiteOpenHelper {
                         sync = true;
                     }
                     else if (interaction.equals(AppManagement.INTERACTION_TYPE_REPLACE)) sync = true;
+                    // duplicate
+                    else if (prediction_correct == -2) sync = true;
                 }
                 // predictions werent on
                 else {
@@ -566,7 +614,6 @@ public class UnsyncedData extends SQLiteOpenHelper {
                     // if not dismissed
                     else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS)) sync = true;
                 }
-                Log.d(TAG, interaction + " predicted: " + predicted + "/" + prediction_correct + " labeled: " + labeled + " SYNC: " + sync);
                 if (sync) {
                     ids.add(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)));
                     UnsyncedNotification u = new UnsyncedNotification();
@@ -589,7 +636,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
                     u.screen_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode));
                     u.ringer_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode));
                     u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));
-                    ;
+
                     u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
                     u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
                     u.labeled = cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) > 0;

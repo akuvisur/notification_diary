@@ -182,7 +182,7 @@ public class NotificationListener extends NotificationListenerService {
                 }
                 if (AppManagement.predictionsEnabled(context)) {
                     ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c);
-                    if (predictions.size() % 5 == 0 && predictions.size() > 9) {
+                    if (predictions.size() % AppManagement.getRandomNumberInRange(8,12) == 0) {
                         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
                         Intent launchIntent = new Intent(context, PredictionActivity.class);
                         PendingIntent pi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), launchIntent, FLAG_CANCEL_CURRENT);
@@ -231,11 +231,11 @@ public class NotificationListener extends NotificationListenerService {
             // location
             else if (intent.getAction().equals(Plugin.ACTION_AWARE_LOCATIONS)) {
                 Boolean match_found = false;
-                curLocation = (Location) intent.getParcelableExtra(Plugin.EXTRA_DATA);
-                if (curLocation == null) {
+                if (intent.getParcelableExtra(Plugin.EXTRA_DATA) == null) {
                     Log.d(TAG, "null location");
                     return;
                 }
+                else curLocation = (Location) intent.getParcelableExtra(Plugin.EXTRA_DATA);
                 Cursor geofences = GeofenceUtils.getLabels(context, null);
                 if (geofences != null && geofences.moveToFirst()) {
                     do {
@@ -309,6 +309,7 @@ public class NotificationListener extends NotificationListenerService {
         super.onStartCommand(intent, flags, something);
         context = this;
 
+        /*
         Aware.startScheduler(this);
 
         try {
@@ -325,34 +326,37 @@ public class NotificationListener extends NotificationListenerService {
         catch (JSONException e) {
             e.printStackTrace();
         }
+*/
 
+        if (statusMonitor == null) { //not set yet
+            statusMonitor = new Intent(this, NotificationListener.class);
+            statusMonitor.setAction(ACTION_KEEP_ALIVE);
+            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, statusMonitor, PendingIntent.FLAG_UPDATE_CURRENT);
 
-//        if (statusMonitor == null) { //not set yet
-//            statusMonitor = new Intent(this, NotificationListener.class);
-//            statusMonitor.setAction(ACTION_KEEP_ALIVE);
-//            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, statusMonitor, PendingIntent.FLAG_UPDATE_CURRENT);
-//
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-//                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-//                        repeatingIntent);
-//            } else {
-//                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
-//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-//                        AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-//                        repeatingIntent);
-//            }
-//        } else { //already set, schedule the next one if API23+. If < API23, it's a repeating alarm, so no need to set it again.
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_KEEP_ALIVE))) {
-//                //set the alarm again to the future for API 23, works even if under Doze
-//                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
-//                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
-//                        repeatingIntent);
-//            }
-//        }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            } else {
+                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            }
+        } else { //already set, schedule the next one if API23+. If < API23, it's a repeating alarm, so no need to set it again.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_KEEP_ALIVE))) {
+                //set the alarm again to the future for API 23, works even if under Doze
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + AppManagement.PREF_FREQUENCY_WATCHDOG * 1000,
+                        repeatingIntent);
+            }
+        }
         initDbConnection();
         helper.syncAlltoProvider(this);
         closeDbConnection();
+
+        initDbConnection();
+        arrivedNotifications = helper.getArrivedNotifications();
 
         return START_STICKY;
     }
@@ -449,7 +453,6 @@ public class NotificationListener extends NotificationListenerService {
     J48 tree;
     public void onNotificationPosted(StatusBarNotification sbn) {
         super.onNotificationPosted(sbn);
-        initDbConnection();
 
         //Log.d(TAG, "New notification posted: " + sbn.getPackageName() + " : " + sbn.getId());
         //Log.d(TAG, "predictions enabled: " + AppManagement.predictionsEnabled(context));
@@ -459,18 +462,28 @@ public class NotificationListener extends NotificationListenerService {
         boolean replacement = false;
         // dont bother storing since even if user swipes the foreground activity might remain as the same
         // thus logging it as a click
-        if (FOREGROUND_APP_PACKAGE.equals(sbn.getPackageName())) {return;}
+        if (FOREGROUND_APP_PACKAGE.equals(sbn.getPackageName())) {
+            return;
+        }
         // if app in blacklist
-        else if (AppManagement.BLACKLIST.contains(sbn.getPackageName())) {return;}
+        else if (AppManagement.BLACKLIST.contains(sbn.getPackageName())) {
+            return;
+        }
 
         // if a notification should not be shown, remove it and don't store it
-        if (AppManagement.predictionsEnabled(context)) {
-            if (!shouldNotificationBeDisplayed(context, sbn)) {
-                showNotification = 0;
+        try {
+            if (AppManagement.predictionsEnabled(context)) {
+                if (!shouldNotificationBeDisplayed(context, sbn)) {
+                    showNotification = 0;
+                } else {
+                    showNotification = 1;
+                }
             }
-            else {
-                showNotification = 1;
-            }
+        }
+        catch (Exception e) {
+            Log.d(TAG, "something went wrong with predictions - show by default");
+            e.printStackTrace();
+            showNotification = 1;
         }
 
         Notification n = sbn.getNotification();
@@ -481,6 +494,7 @@ public class NotificationListener extends NotificationListenerService {
         // also, these multiple notifications are not interacted with as they share the same
         // notification in the tray
         UnsyncedNotification replacedNotification = null;
+        initDbConnection();
         for (UnsyncedNotification iterated_n : arrivedNotifications) {
             if (iterated_n.application_package.equals(sbn.getPackageName())
                     && iterated_n.title.equals(contents[0])) {
@@ -489,11 +503,13 @@ public class NotificationListener extends NotificationListenerService {
                 // these are the "final" context values for this notification
                 replace = new InteractionContext(context).addToValues(replace);
                 replace.put(UnsyncedData.Notifications_Table.notification_id, iterated_n.notification_id);
+
                 helper.updateEntry(context, (int) iterated_n.sqlite_row_id, replace);
                 replacedNotification = iterated_n;
                 replacement = true;
             }
         }
+        closeDbConnection();
 
         if (replacedNotification != null || showNotification == 0) {arrivedNotifications.remove(replacedNotification);}
 
@@ -526,13 +542,16 @@ public class NotificationListener extends NotificationListenerService {
         // add "final" context values if a replaced notification
         if (replacement) c = new InteractionContext(context).addToValues(c);
 
+        initDbConnection();
         unsynced.sqlite_row_id = helper.insertRecord(context, c);
+        closeDbConnection();
 
         arrivedNotifications.add(unsynced);
 
         // if the notification if any of the notifications posted by this app, dont try to
         // repost the reminder notification
         if (!sbn.getPackageName().equals(this.getPackageName())) {
+            initDbConnection();
             ArrayList unlabeled = helper.getUnlabeledNotifications();
             if ((unlabeled.size() > 0) & (unlabeled.size() % AppManagement.getRandomNumberInRange(8, 12)) == 0) {
                 NotificationManager notificationManager = (NotificationManager)
@@ -548,6 +567,7 @@ public class NotificationListener extends NotificationListenerService {
                         .build();
                 notificationManager.notify(NOTIFICATION_UNLABELED_NOTIFICATIONS, launch_notification);
             }
+            closeDbConnection();
         }
         if (AppManagement.predictionsEnabled(context) && !replacement && showNotification == 1 && sbn.getNotification().category != null && !sbn.getNotification().category.equals(Notification.CATEGORY_PROGRESS)) {
             sendNotificationCue(sbn);
@@ -569,6 +589,8 @@ public class NotificationListener extends NotificationListenerService {
                     .build();
             notificationManager.notify(NOTIFICATION_CAN_ENABLE_PREDICTIONS, launch_notification);
         }
+
+        Log.d(TAG, "new posted: " + showNotification + " " + contents[0] + " " + contents[1] + " from " + unsynced.application_package);
 
         closeDbConnection();
     }
@@ -627,14 +649,15 @@ public class NotificationListener extends NotificationListenerService {
     }
 
     private void checkNotificationInteraction(StatusBarNotification sbn, ArrayList<String> foreApps) {
-        int identifier = UnsyncedNotification.getHashIdentifier(sbn.getId(), sbn.getPackageName());
         initDbConnection();
 
         String[] removed_notification_contents = loadTexts(this, sbn.getNotification());
 
         UnsyncedNotification matchingNotification = null;
         for (UnsyncedNotification n : arrivedNotifications) {
-            if ((identifier == n.getHashIdentifier()) &&
+            // if same package and same title -> same notification
+            // id can change
+            if ((sbn.getPackageName().equals(n.application_package)) &&
                     (n.title.equals(removed_notification_contents[0]))) {
                 matchingNotification = n;
                 break;
@@ -940,7 +963,7 @@ public class NotificationListener extends NotificationListenerService {
         ArrayList<UnsyncedNotification> notifications = helper.getUnlabeledNotifications();
         ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c1);
 
-        if (predictions.size() % 5 == 0 && predictions.size() > 9) {
+        if (predictions.size() % AppManagement.getRandomNumberInRange(8, 12) == 0 && predictions.size() > 8) {
             NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             Intent launchIntent = new Intent(this, PredictionActivity.class);
             PendingIntent pi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), launchIntent, FLAG_CANCEL_CURRENT);
@@ -954,18 +977,27 @@ public class NotificationListener extends NotificationListenerService {
             notificationManager.notify(NOTIFICATION_UNVERIFIED_PREDICTIONS, launch_notification);
         }
 
-
+        boolean seen_delay_inputted = false;
         for (UnsyncedNotification notification : notifications) {
             if (notification.application_package != null && notification.generate_timestamp != null && notification.application_package.equals(sbn.getPackageName()) & (notification.notification_id == sbn.getId())) {
                 current_notification.setValue(data.attribute(DiaryNotification.attribute_seen_delay.name), (System.currentTimeMillis()-notification.generate_timestamp)/1000);
+                seen_delay_inputted = true;
+                break;
             }
         }
+        if (!seen_delay_inputted) {
+            current_notification.setValue(data.attribute(DiaryNotification.attribute_seen_delay.name), -1);
+        }
+        // not interacted with yet
+        current_notification.setValue(data.attribute(DiaryNotification.attribute_interaction_delay.name), -1);
+
         Collections.sort(clusters, new ClusterSizeComparator());
 
         int word_count;
         Cluster c;
-
+        int cluster_count = 0;
         for (Integer cluster_id : ids) {
+            cluster_count++;
             c = wordBins.extractCluster(cluster_id, false);
             word_count = 0;
             for (Node node : c.getNodes()) {
@@ -979,6 +1011,7 @@ public class NotificationListener extends NotificationListenerService {
 
         wordBins.close();
 
+        Log.d(TAG, "evaluating: " + current_notification.toString());
         try {
             double result = tree.classifyInstance(evaluated_notification.firstInstance());
             return (result > 0.5);

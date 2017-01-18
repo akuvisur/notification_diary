@@ -97,7 +97,7 @@ public class AppManagement {
     public static void enablePredictions(Context c, boolean enabled) {
         Aware.setSetting(c, PREDICTIONS_ENABLED, enabled);
         setOwnNotificationsHidden(c, true);
-        setSoundControlAllowed(c, false);
+        setSoundControlAllowed(c, true);
     }
 
     public static void storeNumClusters(int num_clusters, Context c) {

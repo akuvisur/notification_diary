@@ -14,6 +14,8 @@ It also analyses the SITUATION in which the notifications are presented to you.\
 \r\n
 Based on this information, it can hide unimportant notifications from you.\r\n
 \r\n
+For the duration of Notification Diary use, please allow all applications to send notifications and clear any personal notification settings.\r\n
+\r\n
 Click next to continue the tutorial."
         android:layout_width="match_parent"
         android:layout_height="match_parent"

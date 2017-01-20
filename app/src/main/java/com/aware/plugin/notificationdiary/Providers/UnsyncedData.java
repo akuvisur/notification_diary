@@ -3,11 +3,8 @@ package com.aware.plugin.notificationdiary.Providers;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
-import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 
 import com.aware.Aware;
@@ -21,7 +18,6 @@ import com.aware.plugin.notificationdiary.Utils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static com.aware.plugin.notificationdiary.ContentAnalysisService.EMPTY_VALUE;
@@ -186,6 +182,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         values.put(Notifications_Table.labeled, 0);
         values.put(Notifications_Table.TIMESTAMP, System.currentTimeMillis());
         values.put(Notifications_Table.DEVICE_ID, Aware.getSetting(c, Aware_Preferences.DEVICE_ID));
+        if (values.containsKey(Notifications_Table.seen_timestamp)) values.put(Notifications_Table.seen, values.getAsLong(Notifications_Table.seen_timestamp) > 0 ? 1 : 0);
         long id = database.insert(DATABASE_NAME, null, values);
         return id;
     }
@@ -202,8 +199,9 @@ public class UnsyncedData extends SQLiteOpenHelper {
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
                 "(" + UnsyncedData.Notifications_Table.labeled + "=? AND " + UnsyncedData.Notifications_Table.interaction_type + "=?) OR (" +
+                Notifications_Table.interaction_type + "=? AND " + Notifications_Table.labeled + " =?) OR (" +
                 Notifications_Table.interaction_type + "=? AND " + Notifications_Table.labeled + " =?)",
-                new String[]{"0", AppManagement.INTERACTION_TYPE_DISMISS, AppManagement.INTERACTION_TYPE_REPLACE, "0"},
+                new String[]{"0", AppManagement.INTERACTION_TYPE_DISMISS, AppManagement.INTERACTION_TYPE_REPLACE, "0", AppManagement.INTERACTION_TYPE_CLICK, "0"},
                 null, null,
                 UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
         // dont ask twice about replaced ones that were skipped once
@@ -253,7 +251,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 null,
                 Notifications_Table.interaction_type + " == NULL",
                 null,null, null,
-                UnsyncedData.Notifications_Table.interaction_timestamp + " ASC");
+                UnsyncedData.Notifications_Table.interaction_timestamp + " ASC LIMIT 50");
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 UnsyncedNotification u = new UnsyncedNotification();
@@ -323,7 +321,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
                 u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
                 u.screen_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode));
                 u.ringer_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode));
-                u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));;
+                u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));
                 u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
                 u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
                 u.predicted_as_show = cursor.getString(cursor.getColumnIndex(Notifications_Table.predicted_as_show)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
@@ -566,7 +564,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         Log.d(TAG, "Syncing local database in order to be uploaded...");
         Cursor cursor = database.query(
             DATABASE_NAME,
-            null, Notifications_Table.synced + " < 1 ", null, null,null, Notifications_Table.generate_timestamp + " ASC LIMIT 50"
+            null, Notifications_Table.synced + " < 1 ", null, null,null, Notifications_Table.generate_timestamp + " ASC LIMIT 250"
         );
         String interaction;
         int predicted;
@@ -618,6 +616,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
                     ids.add(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)));
                     UnsyncedNotification u = new UnsyncedNotification();
                     u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp));
+                    u.seen = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp)) > 0;
                     u.notification_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table.notification_id));
                     u.generate_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.generate_timestamp));
                     u.interaction_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.interaction_timestamp));

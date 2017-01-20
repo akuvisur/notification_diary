@@ -40,10 +40,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.aware.Applications;
-import com.aware.Aware;
 import com.aware.Network;
 import com.aware.Screen;
-import com.aware.plugin.google.fused_location.*;
+import com.aware.plugin.google.fused_location.GeofenceUtils;
+import com.aware.plugin.google.fused_location.GeofencesTracker;
 import com.aware.plugin.google.fused_location.Plugin;
 import com.aware.plugin.google.fused_location.Provider;
 import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
@@ -52,13 +52,11 @@ import com.aware.plugin.notificationdiary.NotificationContext.InteractionContext
 import com.aware.plugin.notificationdiary.NotificationObject.AttributeWithType;
 import com.aware.plugin.notificationdiary.NotificationObject.DiaryNotification;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
-import com.aware.plugin.notificationdiary.Providers.*;
+import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
+import com.aware.plugin.notificationdiary.Providers.WordBins;
 import com.aware.providers.Applications_Provider;
 import com.aware.providers.Battery_Provider;
 import com.aware.providers.Screen_Provider;
-import com.aware.utils.Scheduler;
-
-import org.json.JSONException;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -78,6 +76,7 @@ import static android.app.PendingIntent.FLAG_CANCEL_CURRENT;
 import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_CAN_ENABLE_PREDICTIONS;
 import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_UNLABELED_NOTIFICATIONS;
 import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_UNVERIFIED_PREDICTIONS;
+import static com.aware.plugin.notificationdiary.ContentAnalysisService.EMPTY_VALUE;
 import static com.aware.plugin.notificationdiary.MainTabs.PREDICTION_TAB;
 import static com.aware.plugin.notificationdiary.MainTabs.START_WITH_TAB;
 import static com.aware.plugin.notificationdiary.NotificationAlarmManager.NOTIFICATION_SOUND_URI;
@@ -182,7 +181,7 @@ public class NotificationListener extends NotificationListenerService {
                 }
                 if (AppManagement.predictionsEnabled(context)) {
                     ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c);
-                    if (predictions.size() % AppManagement.getRandomNumberInRange(8,12) == 0) {
+                    if (predictions.size() % AppManagement.getRandomNumberInRange(8,12) == 0 && predictions.size() > 0) {
                         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
                         Intent launchIntent = new Intent(context, PredictionActivity.class);
                         PendingIntent pi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), launchIntent, FLAG_CANCEL_CURRENT);
@@ -235,7 +234,7 @@ public class NotificationListener extends NotificationListenerService {
                     Log.d(TAG, "null location");
                     return;
                 }
-                else curLocation = (Location) intent.getParcelableExtra(Plugin.EXTRA_DATA);
+                else curLocation = intent.getParcelableExtra(Plugin.EXTRA_DATA);
                 Cursor geofences = GeofenceUtils.getLabels(context, null);
                 if (geofences != null && geofences.moveToFirst()) {
                     do {
@@ -497,21 +496,27 @@ public class NotificationListener extends NotificationListenerService {
         initDbConnection();
         for (UnsyncedNotification iterated_n : arrivedNotifications) {
             if (iterated_n.application_package.equals(sbn.getPackageName())
-                    && iterated_n.title.equals(contents[0])) {
+                    && iterated_n.title.equals(contents[0])
+                    && iterated_n.message.equals(contents[1])) {
                 ContentValues replace = new ContentValues();
                 replace.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_REPLACE);
                 // these are the "final" context values for this notification
                 replace = new InteractionContext(context).addToValues(replace);
                 replace.put(UnsyncedData.Notifications_Table.notification_id, iterated_n.notification_id);
+                // if previous was replaced, add current context as the "final" context for it
+                replace = new InteractionContext(context).addToValues(replace);
 
                 helper.updateEntry(context, (int) iterated_n.sqlite_row_id, replace);
                 replacedNotification = iterated_n;
                 replacement = true;
+                break;
             }
         }
         closeDbConnection();
-
-        if (replacedNotification != null || showNotification == 0) {arrivedNotifications.remove(replacedNotification);}
+        // the replacement was tagged with interaction_type replace, now remove it from arrived notifications
+        if (replacedNotification != null) {
+            arrivedNotifications.remove(replacedNotification);
+        }
 
         UnsyncedNotification unsynced = new UnsyncedNotification();
         unsynced.generate_timestamp = System.currentTimeMillis();
@@ -539,14 +544,17 @@ public class NotificationListener extends NotificationListenerService {
         c.put(UnsyncedData.Notifications_Table.predicted_as_show, showNotification);
         c.put(UnsyncedData.Notifications_Table.prediction_correct, -1);
         if (showNotification == 0) c.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_PREDICTION_HIDE);
-        // add "final" context values if a replaced notification
-        if (replacement) c = new InteractionContext(context).addToValues(c);
+
+        // if not hidden by diary, add to arriving notifications, if
+        if (showNotification != 0) arrivedNotifications.add(unsynced);
+        // if was hidden, add current context as 'final' context
+        else if (showNotification == 0) {
+            c = new InteractionContext(context).addToValues(c);
+        }
 
         initDbConnection();
         unsynced.sqlite_row_id = helper.insertRecord(context, c);
         closeDbConnection();
-
-        arrivedNotifications.add(unsynced);
 
         // if the notification if any of the notifications posted by this app, dont try to
         // repost the reminder notification
@@ -569,8 +577,10 @@ public class NotificationListener extends NotificationListenerService {
             }
             closeDbConnection();
         }
-        if (AppManagement.predictionsEnabled(context) && !replacement && showNotification == 1 && sbn.getNotification().category != null && !sbn.getNotification().category.equals(Notification.CATEGORY_PROGRESS)) {
-            sendNotificationCue(sbn);
+
+        if (AppManagement.getSoundControlAllowed(context) && AppManagement.predictionsEnabled(context) && !replacement && showNotification == 1 && (sbn.getNotification().category == null) || (sbn.getNotification().category != null && !sbn.getNotification().category.equals(Notification.CATEGORY_PROGRESS))) {
+            // only send cue if notification has a cue set
+            if (sbn.getNotification().vibrate != null || sbn.getNotification().sound != null) sendNotificationCue(sbn);
         }
         else if (showNotification == 0 && sbn.isClearable()) hideNotification(sbn);
 
@@ -663,8 +673,9 @@ public class NotificationListener extends NotificationListenerService {
                 break;
             }
         }
-        // Did not find a matching notification
+        // Did not find a matching notification ("EMPTY VALUE")
         if (matchingNotification == null) {Log.d(TAG, "No match found");}
+
         else {
             Log.d(TAG, "Match found.");
             if (getCurrentScreenMode() > 0) matchingNotification.seen = true;
@@ -679,7 +690,7 @@ public class NotificationListener extends NotificationListenerService {
             // if automatically hidden
             if (matchingNotification.predicted_as_show == 0) matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_PREDICTION_HIDE;
 
-            else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF) || !matchingNotification.seen) {
+            else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF) || matchingNotification.seen_timestamp < 1) {
                 // system auto removed if screen on or notification was never seen
                 matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS;
                 updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS);
@@ -722,7 +733,7 @@ public class NotificationListener extends NotificationListenerService {
 
     private Boolean shouldNotificationBeDisplayed(Context c1, StatusBarNotification sbn) {
         // the setting is "Never hide notifications from this app", so true means dont hide
-        if ((AppManagement.getOwnNotificationsHidden(c1)) && sbn.getPackageName().equals(getPackageName())) {
+        if ((AppManagement.getOwnNotificationsNeverHidden(c1)) && sbn.getPackageName().equals(getPackageName())) {
             Log.d(TAG, "Not hiding notification due to origin being this app");
             return true;
         }
@@ -761,8 +772,21 @@ public class NotificationListener extends NotificationListenerService {
 
         // set attributes to evaluation instance from training_data
         ArrayList<Attribute> attributes = new ArrayList<>();
-        for (int i = 0; i < (1+DiaryNotification.CONTEXT_ATTRIBUTE_COUNT + num_clusters); i++) {
-            if (i <= data.numAttributes()) attributes.add(i, data.attribute(i));
+        //for (int i = 0; i < (1+DiaryNotification.CONTEXT_ATTRIBUTE_COUNT + num_clusters); i++) {
+        //    if (i <= data.numAttributes()) attributes.add(i, data.attribute(i));
+        //}
+
+        for (AttributeWithType context_variable : UnsyncedNotification.getContextVariables()) {
+            if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_STRING)) {
+               attributes.add(new Attribute(context_variable.name, new ArrayList<>(Arrays.asList(EMPTY_VALUE))));
+            }
+            else if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_DOUBLE)) {
+                attributes.add(new Attribute(context_variable.name));
+            }
+        }
+
+        for (int i = 0; i < num_clusters; i++) {
+            attributes.add(new Attribute("wordbin" + i));
         }
 
         if (attributes.size() < 1+DiaryNotification.CONTEXT_ATTRIBUTE_COUNT + num_clusters) return true;
@@ -1011,9 +1035,10 @@ public class NotificationListener extends NotificationListenerService {
 
         wordBins.close();
 
-        Log.d(TAG, "evaluating: " + current_notification.toString());
         try {
             double result = tree.classifyInstance(evaluated_notification.firstInstance());
+            closeDbConnection();
+            Log.d(TAG, "evaluated as: " + (result > 0.5));
             return (result > 0.5);
         }
         catch (Exception e) {

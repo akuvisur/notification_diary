@@ -12,38 +12,29 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.media.AudioManager;
 import android.media.RingtoneManager;
+import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
-import android.provider.*;
-import android.provider.Settings;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.ViewPager;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.support.v4.view.accessibility.AccessibilityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
-
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.view.ViewPager;
-import android.os.Bundle;
 import android.text.Html;
 import android.util.Log;
 import android.util.TypedValue;
-import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.animation.AnimationUtils;
@@ -248,7 +239,7 @@ public class MainTabs extends AppCompatActivity {
                         int test_count = sp.getInt(AppManagement.TEST_COUNT, 0);
                         if (test_count <= 5) {
                             AppManagement.enablePredictions(context, false);
-                            AppManagement.setOwnNotificationsHidden(context, false);
+                            AppManagement.setOwnNotificationsNeverHidden(context, true);
                             AppManagement.setSoundControlAllowed(context, true);
                             Toast.makeText(context, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
                         }
@@ -535,8 +526,7 @@ public class MainTabs extends AppCompatActivity {
         content_value.setOnRatingBarChangeListener(new RatingBar.OnRatingBarChangeListener() {
             @Override
             public void onRatingChanged(RatingBar ratingBar, float v, boolean b) {
-                if (v >= 0) content_inputted = true;
-                else content_inputted = false;
+                content_inputted = v >= 0;
                 next_button.setEnabled(content_inputted && timing_inputted);
             }
         });
@@ -544,8 +534,7 @@ public class MainTabs extends AppCompatActivity {
         timing_value.setOnRatingBarChangeListener(new RatingBar.OnRatingBarChangeListener() {
             @Override
             public void onRatingChanged(RatingBar ratingBar, float v, boolean b) {
-                if (v >= 0) timing_inputted = true;
-                else timing_inputted = false;
+                timing_inputted = v >= 0;
                 next_button.setEnabled(content_inputted && timing_inputted);
             }
         });
@@ -858,8 +847,15 @@ public class MainTabs extends AppCompatActivity {
                     AlertDialog.Builder builder = new AlertDialog.Builder(context);
                     builder.setTitle("Predictions enabled");
                     builder.setMessage("After predictions are enabled, your volume settings will be temporarily muted. When you have an arriving call or a new notification, the volume or vibration is restored back to normal. You can control this from SETTINGS menu");
-                    builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                    builder.setPositiveButton("Allow", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int which) {
+                            AppManagement.setSoundControlAllowed(context, true);
+                            dialog.cancel();
+                        }
+                    });
+                    builder.setNegativeButton("Don't allow", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            AppManagement.setSoundControlAllowed(context, false);
                             dialog.cancel();
                         }
                     });
@@ -987,7 +983,7 @@ public class MainTabs extends AppCompatActivity {
         notifications_hidden.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                AppManagement.setOwnNotificationsHidden(context, b);
+                AppManagement.setOwnNotificationsNeverHidden(context, b);
             }
         });
         sound_control_allowed = (CheckBox) rootView.findViewById(R.id.settings_volume);
@@ -1032,7 +1028,7 @@ public class MainTabs extends AppCompatActivity {
             }
         });
 
-        notifications_hidden.setChecked(AppManagement.getOwnNotificationsHidden(context));
+        notifications_hidden.setChecked(AppManagement.getOwnNotificationsNeverHidden(context));
         sound_control_allowed.setChecked(AppManagement.getSoundControlAllowed(context));
 
         device_id = (TextView) rootView.findViewById(R.id.settings_device_id);

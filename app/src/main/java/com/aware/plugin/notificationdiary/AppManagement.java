@@ -4,19 +4,11 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.media.AudioManager;
 import android.os.Build;
-import android.os.SystemClock;
-import android.support.annotation.NonNull;
 import android.text.format.DateFormat;
-import android.util.Log;
-import android.widget.Toast;
-
-//import com.neura.sdk.object.Permission;
 
 import com.aware.Aware;
 import com.aware.plugin.notificationdiary.ContentAnalysis.Cluster;
@@ -26,8 +18,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -36,6 +26,8 @@ import java.util.Random;
 import java.util.TimeZone;
 
 import static android.content.Context.ALARM_SERVICE;
+
+//import com.neura.sdk.object.Permission;
 
 /**
  * Created by aku on 14/11/16.
@@ -60,7 +52,7 @@ public class AppManagement {
     public static final String SOUND_CONTROL_ALLOWED = "SOUND_CONTROL_ALLOWED";
     public static final String SELF_NOTIFICATIONS_HIDDEN = "SELF_NOTIFICATIONS_HIDDEN";
 
-    public static final int INTERACTION_CHECK_DELAY = 3000;
+    public static final int INTERACTION_CHECK_DELAY = 7500;
     public static final String INTERACTION_TYPE_SYSTEM_DISMISS = "system_dismiss";
     public static final String INTERACTION_TYPE_REPLACE = "replaced";
     public static final String INTERACTION_TYPE_DISMISS = "dismiss";
@@ -96,8 +88,7 @@ public class AppManagement {
 
     public static void enablePredictions(Context c, boolean enabled) {
         Aware.setSetting(c, PREDICTIONS_ENABLED, enabled);
-        setOwnNotificationsHidden(c, true);
-        setSoundControlAllowed(c, true);
+        setOwnNotificationsNeverHidden(c, true);
     }
 
     public static void storeNumClusters(int num_clusters, Context c) {
@@ -161,8 +152,8 @@ public class AppManagement {
         return clusters;
     }
 
-    public static void storeNewRingerMode(Context c, int mode, int volume) {
-        Aware.setSetting(c, RINGER_MODE, mode);
+    public static void storeNewRingerMode(Context c, Integer mode, int volume) {
+        if (mode != null) Aware.setSetting(c, RINGER_MODE, mode);
         Aware.setSetting(c, SOUND_VOLUME, volume);
     }
 
@@ -200,12 +191,12 @@ public class AppManagement {
         else return value.equals("true");
     }
 
-    public static void setOwnNotificationsHidden(Context c, boolean ownNotificationsHidden) {
+    public static void setOwnNotificationsNeverHidden(Context c, boolean ownNotificationsHidden) {
         Aware.setSetting(c, SELF_NOTIFICATIONS_HIDDEN, ownNotificationsHidden);
     }
 
     // dont allow hiding own notifications by default
-    public static boolean getOwnNotificationsHidden(Context c) {
+    public static boolean getOwnNotificationsNeverHidden(Context c) {
         String value = Aware.getSetting(c, SELF_NOTIFICATIONS_HIDDEN);
         if (value.equals("")) return true;
         else return value.equals("true");

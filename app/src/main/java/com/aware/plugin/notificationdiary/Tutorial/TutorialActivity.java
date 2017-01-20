@@ -5,14 +5,13 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.support.v4.view.accessibility.AccessibilityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
@@ -109,112 +108,119 @@ public class TutorialActivity extends AppCompatActivity {
     boolean accessibility_ok;
     boolean notification_ok;
     private void refreshView(final Context c) {
-        parent.removeAllViews();
-        switch(page) {
-            case 1:
-                previous.setVisibility(View.INVISIBLE);
-                content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page1, null);
-                parent.addView(content);
-                checkConditions();
-                next.setEnabled(true);
-                break;
-            case 2:
-                previous.setVisibility(View.VISIBLE);
-                content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page2, null);
-                parent.addView(content);
+        try {
+            parent.removeAllViews();
+            switch (page) {
+                case 1:
+                    previous.setVisibility(View.INVISIBLE);
+                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page1, null);
+                    parent.addView(content);
+                    checkConditions();
+                    next.setEnabled(true);
+                    break;
+                case 2:
+                    previous.setVisibility(View.VISIBLE);
+                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page2, null);
+                    parent.addView(content);
 
-                permissions = (Button) content.findViewById(R.id.tutorial_permissions);
-                accessibility_access = (Button) content.findViewById(R.id.tutorial_accessibility);
-                notification_access = (Button) content.findViewById(R.id.tutorial_notification_access);
-                battery_optimisation = (Button) content.findViewById(R.id.tutorial_battery_saver);
-                permissions.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        permissionsClick(c);
+                    permissions = (Button) content.findViewById(R.id.tutorial_permissions);
+                    accessibility_access = (Button) content.findViewById(R.id.tutorial_accessibility);
+                    notification_access = (Button) content.findViewById(R.id.tutorial_notification_access);
+                    battery_optimisation = (Button) content.findViewById(R.id.tutorial_battery_saver);
+                    permissions.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            permissionsClick(c);
+                        }
+                    });
+                    accessibility_access.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            accessibilityClick(c);
+                        }
+                    });
+                    notification_access.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            notificationClick(c);
+                        }
+                    });
+                    if (android.os.Build.VERSION.SDK_INT >= 23)
+                        battery_optimisation.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                Intent powerUsageIntent = new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                                startActivity(powerUsageIntent);
+                            }
+                        });
+                    else {
+                        battery_optimisation.setEnabled(false);
+                        battery_optimisation.setText("Incorrect android version for battery optimisation");
                     }
-                });
-                accessibility_access.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        accessibilityClick(c);
-                    }
-                });
-                notification_access.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        notificationClick(c);
-                    }
-                });
-                if (android.os.Build.VERSION.SDK_INT >= 23) battery_optimisation.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        Intent powerUsageIntent = new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-                        startActivity(powerUsageIntent);
-                    }
-                });
-                else {
-                    battery_optimisation.setEnabled(false);
-                    battery_optimisation.setText("Incorrect android version for battery optimisation");
-                }
-                permissions_ok = checkPermissions(c);
-                accessibility_ok = checkAccessibility(c);
-                notification_ok = checkNotification(c);
-                permissions.setEnabled(!permissions_ok);
-                accessibility_access.setEnabled(!accessibility_ok);
-                notification_access.setEnabled(!notification_ok);
-                next.setEnabled(permissions_ok && accessibility_ok && notification_ok);
-                checkConditions();
-                break;
-            case 3:
-                previous.setVisibility(View.VISIBLE);
-                content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page3, null);
-                parent.addView(content);
-                checkConditions();
-                next.setEnabled(true);
-                break;
-            case 4:
-                previous.setVisibility(View.VISIBLE);
-                content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page4, null);
-                parent.addView(content);
-                checkConditions();
-                next.setEnabled(true);
-                break;
-            case 5:
-                previous.setVisibility(View.VISIBLE);
-                content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page5, null);
-                parent.addView(content);
-                checkConditions();
-                next.setEnabled(true);
-                break;
-            case 6:
-                previous.setVisibility(View.VISIBLE);
-                content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page6, null);
-                parent.addView(content);
-                checkConditions();
-                next.setEnabled(true);
-                break;
-            case 7:
-                previous.setVisibility(View.VISIBLE);
-                next.setEnabled(false);
-                content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page7, null);
-                accept_conditions = (Button) content.findViewById(R.id.accept_conditions);
-                accept_conditions.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        AppManagement.acceptConditions(context);
-                        accept_conditions.setBackgroundColor(ContextCompat.getColor(context, R.color.colorPrimaryDark));
-                        accept_conditions.invalidate();
-                        next.setEnabled(true);
-                    }
-                });
-                parent.addView(content);
-                checkConditions();
-                break;
-            case 8:
-                finish();
+                    permissions_ok = checkPermissions(c);
+                    accessibility_ok = checkAccessibility(c);
+                    notification_ok = checkNotification(c);
+                    permissions.setEnabled(!permissions_ok);
+                    accessibility_access.setEnabled(!accessibility_ok);
+                    notification_access.setEnabled(!notification_ok);
+                    next.setEnabled(permissions_ok && accessibility_ok && notification_ok);
+                    checkConditions();
+                    break;
+                case 3:
+                    previous.setVisibility(View.VISIBLE);
+                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page3, null);
+                    parent.addView(content);
+                    checkConditions();
+                    next.setEnabled(true);
+                    break;
+                case 4:
+                    previous.setVisibility(View.VISIBLE);
+                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page4, null);
+                    parent.addView(content);
+                    checkConditions();
+                    next.setEnabled(true);
+                    break;
+                case 5:
+                    previous.setVisibility(View.VISIBLE);
+                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page5, null);
+                    parent.addView(content);
+                    checkConditions();
+                    next.setEnabled(true);
+                    break;
+                case 6:
+                    previous.setVisibility(View.VISIBLE);
+                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page6, null);
+                    parent.addView(content);
+                    checkConditions();
+                    next.setEnabled(true);
+                    break;
+                case 7:
+                    previous.setVisibility(View.VISIBLE);
+                    next.setEnabled(false);
+                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page7, null);
+                    accept_conditions = (Button) content.findViewById(R.id.accept_conditions);
+                    accept_conditions.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            AppManagement.acceptConditions(context);
+                            accept_conditions.setBackgroundColor(ContextCompat.getColor(context, R.color.colorPrimaryDark));
+                            accept_conditions.invalidate();
+                            next.setEnabled(true);
+                        }
+                    });
+                    parent.addView(content);
+                    checkConditions();
+                    break;
+                case 8:
+                    finish();
+            }
+            parent.invalidate();
+            parent.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_in));
         }
-        parent.invalidate();
-        parent.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_in));
+        catch (Exception e) {
+            Toast.makeText(this, "Something went wrong with tutorial - try again please", Toast.LENGTH_LONG);
+            finish();
+        }
     }
 
     private void checkConditions() {
@@ -337,14 +343,7 @@ public class TutorialActivity extends AppCompatActivity {
     private boolean checkNotification(Context c) {
         String notificationListenerString = Settings.Secure.getString(this.getContentResolver(),"enabled_notification_listeners");
         //Check notifications access permission
-        if (notificationListenerString == null || !notificationListenerString.contains(getPackageName()))
-        {
-            //The notification access has not acquired yet!
-            return false;
-        }else{
-            //Your application has access to the notifications
-            return true;
-        }
+        return !(notificationListenerString == null || !notificationListenerString.contains(getPackageName()));
 
     }
 

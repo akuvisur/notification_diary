@@ -411,7 +411,7 @@ public class MainTabs extends AppCompatActivity {
     private View curDiaryRootView;
     private LinearLayout diary_content_layout;
     private RelativeLayout button_container;
-    private LinearLayout skipall_layout;
+    private RelativeLayout skipall_layout;
 
     private boolean diaryViewGenerated = false;
 
@@ -464,7 +464,7 @@ public class MainTabs extends AppCompatActivity {
             diary_content_layout.addView(b);
         }
 
-        skipall_layout = (LinearLayout) rootView.findViewById(R.id.diary_skip_all_layout);
+        skipall_layout = (RelativeLayout) rootView.findViewById(R.id.diary_skip_all_layout);
         button_container = (RelativeLayout) rootView.findViewById(R.id.diary_button_container);
 
         content_help_button = (Button) rootView.findViewById(R.id.diary_content_help);

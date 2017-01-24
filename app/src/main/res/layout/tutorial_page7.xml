@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="#FFFFFF"
+    android:padding="6dp">
 
     <Button
         android:text="I UNDERSTAND AND ACCEPT"
@@ -11,7 +12,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/accept_conditions"
         android:layout_gravity="center_vertical|center_horizontal"
-        android:background="@color/colorPrimaryLight"
+        android:background="@drawable/diary_button_rounded"
         android:padding="6dp"/>
 
     <TextView

@@ -3,12 +3,18 @@
     <color name="colorPrimaryLight">#9DD9ED</color>
     <color name="colorPrimary">#4AACED</color>
     <color name="colorPrimaryDark">#2B84C3</color>
+    <color name="colorPrimaryDisabled">#0e2a3f</color>
+    <color name="colorPrimaryLightTransparent">#669DD9ED</color>
+    <color name="colorPrimaryTransparent">#664AACED</color>
+    <color name="colorPrimaryDarkTransparent">#662B84C3</color>
+    <color name="colorPrimaryDisabledTransparent">#660e2a3f</color>
+
     <color name="colorAccent">#FED852</color>
     <color name="colorSelected">#696969</color>
     <color name="colorUnselected">#ABABAB</color>
-    <color name="ok">#ebfee7</color>
-    <color name="cancel">#fefee7</color>
-    <color name="extra_input">#e7fefe</color>
+    <color name="ok">#9ced4a</color>
+    <color name="cancel">#eded4a</color>
+    <color name="extra_input">#9DD9ED</color>
 
     <color name="accent_green">#bff887</color>
     <color name="accent_yellow">#f8f887</color>

@@ -2,23 +2,18 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="#FFFFFF"
+    android:textColor="#000000"
+    android:padding="6dp">
 
     <TextView
         android:text="Welcome to Notification Diary!\r\n
-\r\n
-This application is made for research purposes, and functions as a tool to reduce the amount of unwanted notifications on your smartphone.\r\n
-\r\n
-The application asks you to specify the importance of INFORMATION show in notifications.\r\n
-It also analyses the SITUATION in which the notifications are presented to you.\r\n
-\r\n
-Based on this information, it can hide unimportant notifications from you.\r\n
-\r\n
-For the duration of Notification Diary use, please allow all applications to send notifications and clear any personal notification settings.\r\n
-\r\n
-Click next to continue the tutorial."
+\r\nThis application is made for research purposes, and functions as a tool to reduce the amount of unwanted notifications on your smartphone.\r\n
+\r\nThe application asks you to specify the importance of INFORMATION show in notifications. It also analyses the SITUATION in which the notifications are presented to you.\r\n
+\r\nBased on this information, it can hide unimportant notifications from you.\r\n
+\r\nFor the duration of Notification Diary use, please consider allowing all applications to send notifications and clear any personal notification settings.\r\n
+\r\nClick next to continue the tutorial."
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center_horizontal|center_vertical"
         android:id="@+id/textView3" />
 </LinearLayout>

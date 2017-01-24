@@ -2,38 +2,44 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="#FFFFFF"
+    android:padding="6dp">
 
     <Button
         android:text="Permissions"
         android:layout_gravity="center_horizontal"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/tutorial_permissions" />
+        android:layout_width="200dp"
+        android:layout_height="40dp"
+        android:id="@+id/tutorial_permissions"
+        android:background="@drawable/diary_button_rounded"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="6dp"
+        android:layout_marginTop="6dp" />
+
     <Button
         android:text="Accessibility services"
         android:layout_gravity="center_horizontal"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:id="@+id/tutorial_accessibility" />
+        android:id="@+id/tutorial_accessibility"
+        android:background="@drawable/diary_button_rounded"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="6dp"/>
 
     <Button
         android:text="Notification access"
         android:layout_gravity="center_horizontal"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:id="@+id/tutorial_notification_access" />
+        android:id="@+id/tutorial_notification_access"
+        android:background="@drawable/diary_button_rounded"
+        android:textColor="#FFFFFF"
+        />
 
     <TextView
-        android:text="The application requires access to different permissions on your smartphone for full functionality.\r\n
-\r\n
-Click each button to set the permissions.\r\n
-\r\n
-The button will be grey and unclickable once the permission is already granted.\r\n
-\r\n
-Please also consider DISABLING battery optimization for Notification Diary as it will hinder the application's functionality.\r\n
-Click the button below, select 'All apps' and scroll down until you find Notification Diary, then DISABLE optimization.\r\n"
-        android:gravity="center_horizontal"
+        android:text="The application requires access to different permissions on your smartphone for full functionality.\r\n\r\nClick each button to set the permissions.\r\n
+\r\nEach button will be specify if the permission is already granted.\r\n
+\r\nPlease also consider DISABLING battery optimization for Notification Diary as it will hinder the application's functionality. Click the button below, select 'All apps' and scroll down until you find Notification Diary, then DISABLE optimization.\r\n"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView14" />
@@ -41,13 +47,15 @@ Click the button below, select 'All apps' and scroll down until you find Notific
     <Button
         android:text="Battery Optimization"
         android:layout_gravity="center_horizontal"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:id="@+id/tutorial_battery_saver" />
+        android:id="@+id/tutorial_battery_saver"
+        android:background="@drawable/diary_button_rounded"
+        android:textColor="#FFFFFF"
+        />
 
     <TextView
         android:text="Click next to continue the tutorial or previous to return to previous page.\r\n"
-        android:gravity="center_horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView14b" />

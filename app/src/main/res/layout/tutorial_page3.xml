@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="#FFFFFF"
+    android:padding="6dp">
 
     <ImageView
         android:layout_width="match_parent"
@@ -12,10 +13,8 @@
         android:id="@+id/imageView" />
 
     <TextView
-        android:gravity="center_horizontal"
         android:text="Notifications are considered CLICKED if you use them to launch the application.\r\n
-\r\n
-If you only interact with the noticiation (e.g. view or reply to messages), the notification will not be considered CLICKED."
+\r\nIf you only interact with the noticication (e.g. view or reply to messages), the notification will not be considered CLICKED."
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView17" />
@@ -27,10 +26,8 @@ If you only interact with the noticiation (e.g. view or reply to messages), the 
         android:id="@+id/imageView2" />
 
     <TextView
-        android:gravity="center_horizontal"
         android:text="A notification is considered DISMISSED if you SWIPE it away from the notification tray.\r\n
-\r\n
-Click next to continue the tutorial or previous to return to previous page."
+\r\nClick next to continue the tutorial or previous to return to previous page."
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView18" />

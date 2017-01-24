@@ -240,7 +240,6 @@ public class MainTabs extends AppCompatActivity {
                         if (test_count <= 5) {
                             AppManagement.enablePredictions(context, false);
                             AppManagement.setOwnNotificationsNeverHidden(context, true);
-                            AppManagement.setSoundControlAllowed(context, true);
                             Toast.makeText(context, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
                         }
 
@@ -291,6 +290,13 @@ public class MainTabs extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main_tabs, menu);
+        initDbConnection();
+        if (helper.getPredictions(this).size() > 0) {
+            MenuItem i = menu.getItem(1);
+            i.setTitle("Predictions");
+            i.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        }
+        closeDbConnection();
         return true;
     }
 
@@ -781,7 +787,11 @@ public class MainTabs extends AppCompatActivity {
                 }
             });
             initDbConnection();
-            launch_pred_act.setText("VIEW PREDICTED NOTIFICATIONS (" + helper.getPredictions(context).size() + ")");
+            ArrayList<UnsyncedData.Prediction> p2 = helper.getPredictions(context);
+            launch_pred_act.setText("PREDICTED NOTIFICATIONS (" + p2.size() + ")");
+            if (p2.size() > 5) {
+                ((TextView) findViewById(R.id.predicted_notifications_please_verify)).setText("Please verify predictions");
+            }
             UnsyncedData.ContentImportance importances = helper.getContentImportance(context);
             important_words.setText(importances.importantToString());
             unimportant_words.setText(importances.unimportantToString());

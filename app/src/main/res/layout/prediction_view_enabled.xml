@@ -144,19 +144,20 @@
         android:layout_marginTop="4dp"
         >
         <Button
-            android:text="VIEW PREDICTED NOTIFICATIONS"
+            android:text="PREDICTED NOTIFICATIONS"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/launch_pred_act"
-            android:background="@color/colorPrimaryLight"
+            android:background="@drawable/diary_button_rounded"
+            android:textSize="14sp"
             android:padding="4dp" />
 
         <TextView
-            android:text="Verify each prediction (SHOW or HIDE)."
+            android:text=""
             android:layout_width="wrap_content"
             android:layout_height="fill_parent"
             android:textSize="12sp"
-            android:id="@+id/textView22"
+            android:id="@+id/predicted_notifications_please_verify"
             android:gravity="start"
             android:layout_marginStart="4dp"/>
 
@@ -174,7 +175,8 @@
             android:layout_height="wrap_content"
             android:id="@+id/refresh_model"
             android:layout_marginRight="8dp"
-            android:background="@color/colorPrimaryLight"
+            android:background="@drawable/diary_button_rounded"
+            android:textSize="14sp"
             android:padding="4dp"
             />
 
@@ -183,7 +185,8 @@
                 android:layout_height="wrap_content"
                 android:text="DISABLE PREDICTIONS"
                 android:id="@+id/disable_predictions"
-                android:background="@color/colorPrimaryLight"
+                android:background="@drawable/diary_button_rounded"
+                android:textSize="14sp"
                 android:padding="4dp"
                 />
     </LinearLayout>

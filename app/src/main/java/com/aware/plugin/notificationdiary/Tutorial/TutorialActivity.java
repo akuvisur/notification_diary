@@ -8,7 +8,6 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.support.v4.view.accessibility.AccessibilityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -203,7 +202,7 @@ public class TutorialActivity extends AppCompatActivity {
                         @Override
                         public void onClick(View view) {
                             AppManagement.acceptConditions(context);
-                            accept_conditions.setBackgroundColor(ContextCompat.getColor(context, R.color.colorPrimaryDark));
+                            accept_conditions.setEnabled(false);
                             accept_conditions.invalidate();
                             next.setEnabled(true);
                         }

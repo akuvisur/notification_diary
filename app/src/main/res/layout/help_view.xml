@@ -15,10 +15,10 @@
             android:layout_height="match_parent">
 
             <Button
-                android:text="View Tutorial"
+                android:text="Tutorial"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/colorPrimaryLight"
+                android:background="@drawable/diary_button_rounded"
                 android:id="@+id/tutorial_button"
                 android:layout_margin="6dp"/>
 

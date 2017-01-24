@@ -653,6 +653,9 @@ public class NotificationListener extends NotificationListenerService {
                         apps_run.close();
                     }
                     checkNotificationInteraction(notif, runApps);
+                    int count = (helper.getPredictions(context).size() + helper.countUnlabeledNotifications());
+                    if (count > 0) BadgeUtils.setBadge(context, count);
+                    else BadgeUtils.clearBadge(context);
                 }
             }, AppManagement.INTERACTION_CHECK_DELAY);
         }
@@ -710,10 +713,6 @@ public class NotificationListener extends NotificationListenerService {
             interactionForegroundApplications.remove(sbn);
             // remove this from list
             arrivedNotifications.remove(matchingNotification);
-
-            int count = (helper.getPredictions(context).size() + helper.countUnlabeledNotifications());
-            if (count > 0) BadgeUtils.setBadge(context, count);
-            else BadgeUtils.clearBadge(context);
         }
         closeDbConnection();
     }

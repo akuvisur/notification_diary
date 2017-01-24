@@ -3,21 +3,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="#FFFFFF"
+    android:padding="6dp">
 
     <ImageView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="80dp"
         app:srcCompat="@drawable/ndiary_prediction_listitem"
         android:id="@+id/imageView4" />
 
     <TextView
-        android:text="Once the predictions are enabled, you can then view and verify accuracy of each prediction (SHOWN or HIDDEN)\r\n
-\r\n
-This information will also be used when generation new prediction models.\r\n
-\r\n
-Click next to continue the tutorial or previous to return to previous page."
-        android:gravity="center_horizontal"
+        android:text="Once the predictions are enabled, you can then view and verify accuracy of each prediction (SHOWN or HIDDEN) from the Predictions menu.\r\n
+\r\nThis information enables you to see the hidden notifications in order to make sure you didn't miss anything and will also be used when generating new prediction models.\r\n
+\r\nClick next to continue the tutorial or previous to return to previous page."
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView21" />

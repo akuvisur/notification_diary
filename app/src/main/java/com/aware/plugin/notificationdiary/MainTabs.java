@@ -173,8 +173,6 @@ public class MainTabs extends AppCompatActivity {
             AppManagement.enablePredictions(this, true);
         }
 
-
-
     }
 
     @Override
@@ -291,9 +289,10 @@ public class MainTabs extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main_tabs, menu);
         initDbConnection();
-        if (helper.getPredictions(this).size() > 0) {
+        ArrayList<UnsyncedData.Prediction> p2 = helper.getPredictions(this);
+        if (p2.size() > 0) {
             MenuItem i = menu.getItem(1);
-            i.setTitle("Predictions");
+            i.setTitle(p2.size() + " Predictions");
             i.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
         }
         closeDbConnection();
@@ -394,6 +393,7 @@ public class MainTabs extends AppCompatActivity {
                                  Bundle savedInstanceState) {
             curFragmentNumber = getArguments().getInt(ARG_SECTION_NUMBER);
             View view;
+            if (activity == null) return new View(context);
             switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
                 // Diary view
                 case 1:

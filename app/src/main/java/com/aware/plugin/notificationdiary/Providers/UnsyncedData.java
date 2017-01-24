@@ -182,7 +182,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         values.put(Notifications_Table.labeled, 0);
         values.put(Notifications_Table.TIMESTAMP, System.currentTimeMillis());
         values.put(Notifications_Table.DEVICE_ID, Aware.getSetting(c, Aware_Preferences.DEVICE_ID));
-        if (values.containsKey(Notifications_Table.seen_timestamp)) values.put(Notifications_Table.seen, values.getAsLong(Notifications_Table.seen_timestamp) > 0 ? 1 : 0);
+        if (values.containsKey(Notifications_Table.seen_timestamp) && values.getAsLong(Notifications_Table.seen_timestamp) != null && values.getAsLong(Notifications_Table.seen_timestamp) > 0.0) values.put(Notifications_Table.seen, 1); else values.put(Notifications_Table.seen, 0);
         long id = database.insert(DATABASE_NAME, null, values);
         return id;
     }

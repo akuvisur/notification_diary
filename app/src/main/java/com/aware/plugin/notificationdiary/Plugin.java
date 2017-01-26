@@ -1,5 +1,7 @@
 package com.aware.plugin.notificationdiary;
 
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Log;
@@ -43,9 +45,19 @@ public class Plugin extends Aware_Plugin {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Aware.setSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY, true);
-        startService(new Intent(this, NotificationListener.class));
-        startService(new Intent(this, NotificationAlarmManager.class));
+        if (!isMyServiceRunning(NotificationAlarmManager.class)) startService(new Intent(this, NotificationAlarmManager.class));
+        if (!isMyServiceRunning(NotificationListener.class)) startService(new Intent(this, NotificationListener.class));
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    private boolean isMyServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

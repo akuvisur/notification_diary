@@ -1,16 +1,11 @@
 package com.aware.plugin.notificationdiary;
-import android.content.Context;
+
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import com.aware.Aware;
-import com.aware.Aware_Preferences;
 import com.aware.plugin.notificationdiary.Providers.Provider;
-import com.aware.ui.PermissionsHandler;
 import com.aware.utils.Aware_Plugin;
 
 public class Plugin extends Aware_Plugin {
@@ -48,13 +43,14 @@ public class Plugin extends Aware_Plugin {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Aware.setSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY, true);
+        startService(new Intent(this, NotificationListener.class));
+        startService(new Intent(this, NotificationAlarmManager.class));
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-
         Aware.setSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY, false);
         Log.d(TAG, "onDestroy");
         //Stop AWARE

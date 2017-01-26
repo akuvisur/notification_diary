@@ -356,7 +356,7 @@ public class NotificationListener extends NotificationListenerService {
 
         initDbConnection();
         arrivedNotifications = helper.getArrivedNotifications();
-
+        MainTabs.isAccessibilityServiceActive(this);
         return START_STICKY;
     }
 
@@ -584,6 +584,7 @@ public class NotificationListener extends NotificationListenerService {
         }
         else if (showNotification == 0 && sbn.isClearable()) hideNotification(sbn);
 
+        initDbConnection();
         if (!AppManagement.predictionsEnabled(context) && helper.getNumOfTrainingData() > 50 && (AppManagement.getRandomNumberInRange(0, 100) <= 25)) {
             NotificationManager notificationManager = (NotificationManager)
                     getSystemService(NOTIFICATION_SERVICE);

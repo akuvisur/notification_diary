@@ -1092,7 +1092,6 @@ public class MainTabs extends AppCompatActivity {
         }
     }
 
-
     public static boolean isAccessibilityServiceActive(final Context c) {
         if (!isAccessibilityEnabled(c)) {
             NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(c);

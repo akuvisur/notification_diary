@@ -19,7 +19,10 @@
             android:layout_gravity="left"
             android:text="REJECT ALL"
             android:layout_centerVertical="true"
-            android:layout_alignParentStart="true"/>
+            android:layout_alignParentStart="true"
+            android:background="@drawable/diary_button_rounded"
+            android:textSize="14sp"
+            android:padding="6dp"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -29,7 +32,9 @@
             android:layout_centerVertical="true"
             android:layout_toEndOf="@id/predact_rejectall"
             android:layout_toStartOf="@+id/predact_acceptall"
-            android:id="@+id/num_predictions"/>
+            android:id="@+id/num_predictions"
+            android:layout_marginLeft="4dp"
+            />
 
         <Button
             android:layout_width="wrap_content"
@@ -38,7 +43,10 @@
             android:layout_gravity="right"
             android:text="ACCEPT ALL"
             android:layout_centerVertical="true"
-            android:layout_alignParentEnd="true" />
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/diary_button_rounded"
+            android:textSize="14sp"
+            android:padding="6dp"/>
     </RelativeLayout>
 
     <ListView

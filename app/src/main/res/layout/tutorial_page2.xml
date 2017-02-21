@@ -16,6 +16,12 @@
         android:layout_marginBottom="6dp"
         android:layout_marginTop="6dp" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Location access is used to recognise your general location, and call permission is used only to spot when you have an incoming call."
+        android:layout_marginBottom="4dp"/>
+
     <Button
         android:text="Accessibility services"
         android:layout_gravity="center_horizontal"
@@ -37,9 +43,8 @@
         />
 
     <TextView
-        android:text="The application requires access to different permissions on your smartphone for full functionality.\r\n\r\nClick each button to set the permissions.\r\n
-\r\nEach button will be specify if the permission is already granted.\r\n
-\r\nPlease also consider DISABLING battery optimization for Notification Diary as it will hinder the application's functionality. Click the button below, select 'All apps' and scroll down until you find Notification Diary, then DISABLE optimization.\r\n"
+        android:text="The application requires access to different permissions on your smartphone for full functionality. Click each button to set the permissions.\r\n
+\r\nEach button will be specify if the permission is already granted. Please also consider DISABLING battery optimization for Notification Diary as it will hinder the application's functionality. Click the button below, select 'All apps' and scroll down until you find Notification Diary, then DISABLE optimization.\r\n"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/textView14" />

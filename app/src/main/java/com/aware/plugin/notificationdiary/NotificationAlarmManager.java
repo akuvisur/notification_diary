@@ -112,19 +112,6 @@ public class NotificationAlarmManager extends Service {
                                 mute();
                             }
                         }, RINGER_CHANGE_DELAY);
-                    }
-                    // clock alarm
-                    else if (intent.getAction().equals(Intent.ACTION_TIME_TICK)) {
-                        private_ringer_change = System.currentTimeMillis();
-                        int ringer_mode = AppManagement.getRingerMode(context);
-                        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                        am.setRingerMode(ringer_mode);
-                        new Handler().postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                mute();
-                            }
-                        }, RINGER_CHANGE_DELAY);
                     } else if (intent.getAction().equals(SEND_NOTIFICATION_CUE)) {
                         if ((System.currentTimeMillis() - lastCue) > 2500) {
                             Log.d(TAG, "no recent cues, emitting new!");
@@ -170,8 +157,6 @@ public class NotificationAlarmManager extends Service {
             filt.addAction(ACTION_MODE_CHANGED_FROM_NOTIFICATION_DIARY);
             // change ringer mode calendar events
             filt.addAction("EVENT_REMINDER_ACTION");
-            // change ringer mode clock alarms
-            filt.addAction(Intent.ACTION_TIME_TICK);
 
             registerReceiver(ringerReceiver, filt);
 

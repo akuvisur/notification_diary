@@ -1,7 +1,5 @@
 package com.aware.plugin.notificationdiary;
 
-import android.app.ActivityManager;
-import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Log;
@@ -9,6 +7,8 @@ import android.util.Log;
 import com.aware.Aware;
 import com.aware.plugin.notificationdiary.Providers.Provider;
 import com.aware.utils.Aware_Plugin;
+
+import static com.aware.plugin.notificationdiary.AppManagement.isMyServiceRunning;
 
 public class Plugin extends Aware_Plugin {
 
@@ -38,26 +38,20 @@ public class Plugin extends Aware_Plugin {
         }; //this syncs dummy Notifications_Table to server
 
         //Activate plugin -- do this ALWAYS as the last thing (this will restart your own plugin and apply the settings)
-        Aware.startPlugin(this, "com.aware.plugin.notificationdiary");
+        //Aware.startPlugin(this, "com.aware.plugin.notificationdiary");
     }
 
     //This function gets called every 5 minutes by AWARE to make sure this plugin is still running.
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Aware.setSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY, true);
-        if (!isMyServiceRunning(NotificationAlarmManager.class)) startService(new Intent(this, NotificationAlarmManager.class));
-        if (!isMyServiceRunning(NotificationListener.class)) startService(new Intent(this, NotificationListener.class));
-        return super.onStartCommand(intent, flags, startId);
-    }
+        Log.d(TAG, "Plugin onstart");
+        Aware.startAWARE(this);
 
-    private boolean isMyServiceRunning(Class<?> serviceClass) {
-        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-            if (serviceClass.getName().equals(service.service.getClassName())) {
-                return true;
-            }
-        }
-        return false;
+        Aware.setSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY, true);
+        if (AppManagement.getSoundControlAllowed(this) && !isMyServiceRunning(NotificationAlarmManager.class, this)) startService(new Intent(this, NotificationAlarmManager.class));
+        if (!isMyServiceRunning(NotificationListener.class, this)) startService(new Intent(this, NotificationListener.class));
+
+        return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
@@ -66,7 +60,7 @@ public class Plugin extends Aware_Plugin {
         Aware.setSetting(this, Settings.STATUS_PLUGIN_NOTIFICATIONDIARY, false);
         Log.d(TAG, "onDestroy");
         //Stop AWARE
-        Aware.stopAWARE();
+        Aware.stopAWARE(this);
     }
 
 }

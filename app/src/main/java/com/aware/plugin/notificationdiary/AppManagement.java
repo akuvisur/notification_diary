@@ -1,5 +1,6 @@
 package com.aware.plugin.notificationdiary;
 
+import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -219,7 +220,9 @@ public class AppManagement {
     }
 
     public static void acceptConditions(Context c) {
+        Aware.startAWARE(c);
         Aware.setSetting(c, CONDITIONS_ACCEPTED, true);
+        Aware.joinStudy(c, "https://api.awareframework.com/index.php/webservice/index/980/5jg027moJgWg");
     }
 
     public static void startDailyModel(Context c) {
@@ -249,8 +252,18 @@ public class AppManagement {
 
     public static int getTutorialPage(Context c) {
         String value = Aware.getSetting(c, TUTORIAL_PAGE);
-        if (value.equals("")) return 1;
+        if (value.equals("")) return 0;
         else return Integer.valueOf(value);
+    }
+
+    public static boolean isMyServiceRunning(Class<?> serviceClass, Context context) {
+        ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static class MapUtil

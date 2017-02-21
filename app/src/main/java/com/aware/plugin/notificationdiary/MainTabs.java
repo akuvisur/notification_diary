@@ -66,6 +66,8 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.aware.plugin.notificationdiary.AppManagement.isMyServiceRunning;
+
 
 public class MainTabs extends AppCompatActivity {
 
@@ -101,6 +103,7 @@ public class MainTabs extends AppCompatActivity {
     }
 
     private static ArrayList<String> REQUIRED_PERMISSIONS = new ArrayList<>();
+    private static ArrayList<String> LAUNCH_PERMISSIONS = new ArrayList<>();
 
     /**
      * The {@link ViewPager} that will host the section contents.
@@ -156,14 +159,30 @@ public class MainTabs extends AppCompatActivity {
 
         AppManagement.init(this);
 
+        LAUNCH_PERMISSIONS.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
         REQUIRED_PERMISSIONS.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        REQUIRED_PERMISSIONS.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_FINE_LOCATION);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_WIFI_STATE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_NETWORK_STATE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.VIBRATE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.READ_PHONE_STATE);
+
+        PackageManager pm = getPackageManager();
+        for (String perm : LAUNCH_PERMISSIONS) {
+            int hasPerm = pm.checkPermission(
+                    perm,
+                    getPackageName());
+            if (hasPerm != PackageManager.PERMISSION_GRANTED) {
+                Intent permissions = new Intent(this, PermissionsHandler.class);
+                permissions.putExtra(PermissionsHandler.EXTRA_REQUIRED_PERMISSIONS, LAUNCH_PERMISSIONS);
+                permissions.putExtra(PermissionsHandler.EXTRA_REDIRECT_ACTIVITY, getPackageName() + "/" + getClass().getName());
+                startActivity(permissions);
+                finish();
+                return;
+            }
+        }
 
         // change page to prediction tab if needed
         if (getIntent() != null & getIntent().hasExtra(START_WITH_TAB)) {
@@ -178,8 +197,12 @@ public class MainTabs extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
+
+        Aware.startAWARE(this);
+
         if (AppManagement.isFirstLaunch(this)) {
             Intent tutorial = new Intent(this, TutorialActivity.class);
+            tutorial.putExtra(PermissionsHandler.EXTRA_REDIRECT_ACTIVITY, getPackageName() + "/" + getClass().getName());
             startActivity(tutorial);
         }
         else {
@@ -191,26 +214,24 @@ public class MainTabs extends AppCompatActivity {
                         getPackageName());
                 if (hasPerm != PackageManager.PERMISSION_GRANTED) {
                     allPermissionsOk = false;
-
                     Intent permissions = new Intent(this, PermissionsHandler.class);
                     permissions.putExtra(PermissionsHandler.EXTRA_REQUIRED_PERMISSIONS, REQUIRED_PERMISSIONS);
                     permissions.putExtra(PermissionsHandler.EXTRA_REDIRECT_ACTIVITY, getPackageName() + "/" + getClass().getName());
                     startActivity(permissions);
-                    break;
+                    finish();
+                    return;
                 }
             }
-
             if (allPermissionsOk) {
                 AppManagement.setTutorialPage(this, 1);
-                Intent startAware = new Intent(this, Aware.class);
-                startService(startAware);
+                if (!isMyServiceRunning(Aware.class, this)) Aware.startAWARE(this);
 
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         if (!Aware.isStudy(context))
                             Aware.joinStudy(context, "https://api.awareframework.com/index.php/webservice/index/980/5jg027moJgWg");
-                        Aware.startAWARE();
+                        Aware.startAWARE(context);
 
                         Aware.setSetting(context, Applications.STATUS_AWARE_ACCESSIBILITY, true);
                         Aware.setSetting(context, Aware_Preferences.STATUS_APPLICATIONS, true);
@@ -228,8 +249,8 @@ public class MainTabs extends AppCompatActivity {
                         Aware.startESM(context);
 
                         Aware.startPlugin(context, "com.aware.plugin.google.fused_location");
-                        // "start" this "plugin" so AWARE understands its running and syncs the data
-                        Aware.startPlugin(context, "com.aware.plugin.notificationdiary");
+                        Intent startPlugin = new Intent(context, Plugin.class);
+                        startService(startPlugin);
 
                         isAccessibilityServiceActive(context);
 
@@ -241,8 +262,10 @@ public class MainTabs extends AppCompatActivity {
                             Toast.makeText(context, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
                         }
 
-                        Intent service = new Intent(context, NotificationListener.class);
-                        startService(service);
+                        if (!isMyServiceRunning(NotificationListener.class, context)) {
+                            Intent service = new Intent(context, NotificationListener.class);
+                            startService(service);
+                        }
                     }
                 }, 500);
 
@@ -584,6 +607,9 @@ public class MainTabs extends AppCompatActivity {
                 content_inputted = false;
                 timing_inputted = false;
 
+                next_button.setEnabled(content_inputted & timing_inputted);
+                next_button.invalidate();
+
                 notification_layout.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
                 new Handler().postDelayed(new Runnable() {
                     @Override
@@ -673,6 +699,7 @@ public class MainTabs extends AppCompatActivity {
             notification_app_name.setText(AppManagement.getApplicationNameFromPackage(context, remainingNotifications.get(0).application_package));
             notification_message.setText(remainingNotifications.get(0).message);
             notification_title.setText(remainingNotifications.get(0).title);
+            Log.d(TAG, "timestamps: " + remainingNotifications.get(0).seen_timestamp + " " + AppManagement.getDate(context, remainingNotifications.get(0).seen_timestamp));
             notification_timestamp.setText(AppManagement.getDate(context, remainingNotifications.get(0).seen_timestamp));
 
             notification_app_name.invalidate();
@@ -790,7 +817,8 @@ public class MainTabs extends AppCompatActivity {
             ArrayList<UnsyncedData.Prediction> p2 = helper.getPredictions(context);
             launch_pred_act.setText("PREDICTED NOTIFICATIONS (" + p2.size() + ")");
             if (p2.size() > 5) {
-                ((TextView) findViewById(R.id.predicted_notifications_please_verify)).setText("Please verify predictions");
+                TextView pls = (TextView) rootView.findViewById(R.id.predicted_notifications_please_verify);
+                pls.setText("Please verify predictions");
             }
             UnsyncedData.ContentImportance importances = helper.getContentImportance(context);
             important_words.setText(importances.importantToString());

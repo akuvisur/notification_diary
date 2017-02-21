@@ -76,6 +76,7 @@ import static android.app.PendingIntent.FLAG_CANCEL_CURRENT;
 import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_CAN_ENABLE_PREDICTIONS;
 import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_UNLABELED_NOTIFICATIONS;
 import static com.aware.plugin.notificationdiary.AppManagement.NOTIFICATION_UNVERIFIED_PREDICTIONS;
+import static com.aware.plugin.notificationdiary.AppManagement.isMyServiceRunning;
 import static com.aware.plugin.notificationdiary.ContentAnalysisService.EMPTY_VALUE;
 import static com.aware.plugin.notificationdiary.MainTabs.PREDICTION_TAB;
 import static com.aware.plugin.notificationdiary.MainTabs.START_WITH_TAB;
@@ -149,12 +150,6 @@ public class NotificationListener extends NotificationListenerService {
                     e.printStackTrace();
                 }
 
-                if (sp.getInt(AppManagement.TEST_COUNT, 0) <= 5) {
-                    Toast.makeText(context, "Testing " + sp.getInt(AppManagement.TEST_COUNT, 0) + " ... Application changed to : " + FOREGROUND_APP_NAME, Toast.LENGTH_SHORT).show();
-                }
-                else if (sp.getInt(AppManagement.TEST_COUNT, 0) <= 5) {
-                    Toast.makeText(context, "Everything seems to be working OK", Toast.LENGTH_SHORT).show();
-                }
             }
 
             else if (intent.getAction().equals(Screen.ACTION_AWARE_SCREEN_OFF)) {
@@ -354,8 +349,12 @@ public class NotificationListener extends NotificationListenerService {
         helper.syncAlltoProvider(this);
         closeDbConnection();
 
-        initDbConnection();
-        arrivedNotifications = helper.getArrivedNotifications();
+        if (arrivedNotifications == null) {
+            initDbConnection();
+            arrivedNotifications = helper.getArrivedNotifications();
+            closeDbConnection();
+        }
+
         MainTabs.isAccessibilityServiceActive(this);
         return START_STICKY;
     }
@@ -393,8 +392,10 @@ public class NotificationListener extends NotificationListenerService {
         sensorFilter.addAction(GeofencesTracker.ACTION_AWARE_PLUGIN_FUSED_INSIDE_GEOGENCE);
         registerReceiver(ar, sensorFilter);
 
-        Intent activityService = new Intent(this, ActivityService.class);
-        startService(activityService);
+        if (!isMyServiceRunning(ActivityService.class, this)) {
+            Intent activityService = new Intent(this, ActivityService.class);
+            startService(activityService);
+        }
 
         // initialize google activity recognition
         new ActivityApiClient(this);
@@ -404,9 +405,10 @@ public class NotificationListener extends NotificationListenerService {
             AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
             audio.setVibrateSetting(AudioManager.VIBRATE_TYPE_NOTIFICATION, AudioManager.VIBRATE_SETTING_OFF);
             audio.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0);
-
-            Intent startAlarmManager = new Intent(this, NotificationAlarmManager.class);
-            startService(startAlarmManager);
+            if (!isMyServiceRunning(NotificationAlarmManager.class, this)) {
+                Intent startAlarmManager = new Intent(this, NotificationAlarmManager.class);
+                startService(startAlarmManager);
+            }
         }
         if (AppManagement.predictionsEnabled(this)) AppManagement.startDailyModel(this);
 
@@ -447,12 +449,15 @@ public class NotificationListener extends NotificationListenerService {
     }
 
     //private static HashMap<MapKey, ArrayList<String>> arrivedNotifications = new HashMap<>();
-    private static ArrayList<UnsyncedNotification> arrivedNotifications = new ArrayList<>();
+    private static ArrayList<UnsyncedNotification> arrivedNotifications = null;
 
     J48 tree;
     public void onNotificationPosted(StatusBarNotification sbn) {
         super.onNotificationPosted(sbn);
 
+        initDbConnection();
+        if (arrivedNotifications == null) arrivedNotifications = helper.getArrivedNotifications();
+        closeDbConnection();
         //Log.d(TAG, "New notification posted: " + sbn.getPackageName() + " : " + sbn.getId());
         //Log.d(TAG, "predictions enabled: " + AppManagement.predictionsEnabled(context));
 
@@ -666,6 +671,8 @@ public class NotificationListener extends NotificationListenerService {
 
     private void checkNotificationInteraction(StatusBarNotification sbn, ArrayList<String> foreApps) {
         initDbConnection();
+        if (arrivedNotifications == null) arrivedNotifications = helper.getArrivedNotifications();
+        closeDbConnection();
 
         String[] removed_notification_contents = loadTexts(this, sbn.getNotification());
 
@@ -696,11 +703,11 @@ public class NotificationListener extends NotificationListenerService {
             // if automatically hidden
             if (matchingNotification.predicted_as_show == 0) matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_PREDICTION_HIDE;
 
-            else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF) || matchingNotification.seen_timestamp < 1) {
+            else if (SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF) || matchingNotification.seen_timestamp != null && matchingNotification.seen_timestamp < 1) {
                 // system auto removed if screen on or notification was never seen
                 matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS;
                 updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_SYSTEM_DISMISS);
-            } else if (foreApps.contains(matchingNotification.application_package) || matchingNotification.application_package.equals(FOREGROUND_APP_PACKAGE)) {
+            } else if (matchingNotification.application_package != null && (foreApps.contains(matchingNotification.application_package) || matchingNotification.application_package.equals(FOREGROUND_APP_PACKAGE))) {
                 // click
                 matchingNotification.interaction_type = AppManagement.INTERACTION_TYPE_CLICK;
                 updated_values.put(UnsyncedData.Notifications_Table.interaction_type, AppManagement.INTERACTION_TYPE_CLICK);
@@ -712,6 +719,7 @@ public class NotificationListener extends NotificationListenerService {
 
             initDbConnection();
             helper.updateEntry(context, (int) matchingNotification.sqlite_row_id, updated_values);
+            closeDbConnection();
 
             interactionForegroundApplications.remove(sbn);
             // remove this from list
@@ -730,6 +738,7 @@ public class NotificationListener extends NotificationListenerService {
             }
         }
         catch (Exception e) {}
+        Log.d(TAG, "screen mode " + result + " var " );
         return result;
     }
 

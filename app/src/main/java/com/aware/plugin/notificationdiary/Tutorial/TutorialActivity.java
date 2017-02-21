@@ -23,6 +23,7 @@ import android.widget.Toast;
 import com.aware.Applications;
 import com.aware.Aware;
 import com.aware.plugin.notificationdiary.AppManagement;
+import com.aware.plugin.notificationdiary.MainTabs;
 import com.aware.plugin.notificationdiary.R;
 import com.aware.ui.PermissionsHandler;
 
@@ -35,7 +36,7 @@ public class TutorialActivity extends AppCompatActivity {
 
     ScrollView parent;
     Button next;
-    Button previous;
+    Button skip;
 
     private static ArrayList<String> REQUIRED_PERMISSIONS = new ArrayList<>();
 
@@ -45,11 +46,14 @@ public class TutorialActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         context = this;
-        page = 1;
+
+        if (!researchConditionsAccepted(this)) page = 0;
+        else page = 1;
+
         setContentView(R.layout.activity_tutorial);
         parent = (ScrollView) findViewById(R.id.tutorial_parent);
         next = (Button) findViewById(R.id.tutorial_next_button);
-        previous = (Button) findViewById(R.id.tutorial_prev_button);
+        skip = (Button) findViewById(R.id.tutorial_skip_button);
         next.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -64,23 +68,19 @@ public class TutorialActivity extends AppCompatActivity {
                 }, 500);
             }
         });
-        previous.setOnClickListener(new View.OnClickListener() {
+        skip.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                page--;
-                AppManagement.setTutorialPage(context, page);
-                content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_right));
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        refreshView(context);
-                    }
-                }, 500);
+                AppManagement.setTutorialPage(context, 1);
+                AppManagement.setFirstLaunch(context);
+                Intent intent = new Intent(context, MainTabs.class);
+                startActivity(intent);
+                finish();
+                return;
             }
         });
 
         REQUIRED_PERMISSIONS.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        REQUIRED_PERMISSIONS.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_FINE_LOCATION);
         REQUIRED_PERMISSIONS.add(Manifest.permission.ACCESS_WIFI_STATE);
@@ -110,15 +110,32 @@ public class TutorialActivity extends AppCompatActivity {
         try {
             parent.removeAllViews();
             switch (page) {
+                case 0:
+                    skip.setEnabled(researchConditionsAccepted(c) && setupComplete(c));
+                    next.setEnabled(false);
+                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page0, null);
+                    accept_conditions = (Button) content.findViewById(R.id.accept_conditions);
+                    accept_conditions.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            AppManagement.acceptConditions(context);
+                            accept_conditions.setEnabled(false);
+                            accept_conditions.invalidate();
+                            next.setEnabled(true);
+                        }
+                    });
+                    parent.addView(content);
+                    checkConditions();
+                    break;
                 case 1:
-                    previous.setVisibility(View.INVISIBLE);
+                    skip.setEnabled(researchConditionsAccepted(c) && setupComplete(c));
                     content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page1, null);
                     parent.addView(content);
                     checkConditions();
                     next.setEnabled(true);
                     break;
                 case 2:
-                    previous.setVisibility(View.VISIBLE);
+                    skip.setEnabled(researchConditionsAccepted(c) && setupComplete(c));
                     content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page2, null);
                     parent.addView(content);
 
@@ -166,52 +183,36 @@ public class TutorialActivity extends AppCompatActivity {
                     checkConditions();
                     break;
                 case 3:
-                    previous.setVisibility(View.VISIBLE);
+                    skip.setEnabled(true);
                     content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page3, null);
                     parent.addView(content);
                     checkConditions();
                     next.setEnabled(true);
                     break;
                 case 4:
-                    previous.setVisibility(View.VISIBLE);
+                    skip.setEnabled(true);
                     content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page4, null);
                     parent.addView(content);
                     checkConditions();
                     next.setEnabled(true);
                     break;
                 case 5:
-                    previous.setVisibility(View.VISIBLE);
+                    skip.setEnabled(true);
                     content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page5, null);
                     parent.addView(content);
                     checkConditions();
                     next.setEnabled(true);
                     break;
                 case 6:
-                    previous.setVisibility(View.VISIBLE);
+                    skip.setEnabled(true);
                     content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page6, null);
                     parent.addView(content);
                     checkConditions();
                     next.setEnabled(true);
                     break;
                 case 7:
-                    previous.setVisibility(View.VISIBLE);
-                    next.setEnabled(false);
-                    content = (LinearLayout) getLayoutInflater().inflate(R.layout.tutorial_page7, null);
-                    accept_conditions = (Button) content.findViewById(R.id.accept_conditions);
-                    accept_conditions.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View view) {
-                            AppManagement.acceptConditions(context);
-                            accept_conditions.setEnabled(false);
-                            accept_conditions.invalidate();
-                            next.setEnabled(true);
-                        }
-                    });
-                    parent.addView(content);
-                    checkConditions();
-                    break;
-                case 8:
                     finish();
+                    return;
             }
             parent.invalidate();
             parent.startAnimation(AnimationUtils.loadAnimation(context, android.R.anim.fade_in));
@@ -219,36 +220,53 @@ public class TutorialActivity extends AppCompatActivity {
         catch (Exception e) {
             Toast.makeText(this, "Something went wrong with tutorial - try again please", Toast.LENGTH_LONG);
             finish();
+            return;
         }
     }
 
     private void checkConditions() {
-        if ((AppManagement.conditionsAccepted(context) && page == 6) || page == 7) {
+        if (page < 6) {
+            next.setText("Next");
             next.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                finish();
-                AppManagement.setTutorialPage(context, 1);
-                AppManagement.setFirstLaunch(context);
+                    page++;
+                    AppManagement.setTutorialPage(context, page);
+                    content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            refreshView(context);
+                        }
+                    }, 500);
                 }
             });
         }
         else {
+            next.setText("Finish");
             next.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                page++;
-                AppManagement.setTutorialPage(context, page);
-                content.startAnimation(AnimationUtils.loadAnimation(context, R.anim.anim_out_left));
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        refreshView(context);
-                    }
-                }, 500);
+                    AppManagement.setTutorialPage(context, 1);
+                    AppManagement.setFirstLaunch(context);
+                    Intent intent = new Intent(context, MainTabs.class);
+                    startActivity(intent);
+                    finish();
+                    return;
                 }
             });
         }
+    }
+
+    private boolean researchConditionsAccepted(Context c) {
+        return Aware.isStudy(c);
+    }
+
+    static boolean permissionsOk;
+    static boolean notificationOk;
+    static boolean accessibilityOk;
+    private boolean setupComplete(Context c) {
+        return permissionsOk && notificationOk && accessibilityOk;
     }
 
     private boolean checkPermissions(Context c) {
@@ -263,6 +281,7 @@ public class TutorialActivity extends AppCompatActivity {
                 break;
             }
         }
+        permissionsOk = allPermissionsOk;
         return allPermissionsOk;
     }
 
@@ -335,15 +354,15 @@ public class TutorialActivity extends AppCompatActivity {
 
         //Keep the global setting up-to-date
         Aware.setSetting(c, Applications.STATUS_AWARE_ACCESSIBILITY, enabled, "com.aware.phone");
-
+        accessibilityOk = enabled;
         return enabled;
     }
 
     private boolean checkNotification(Context c) {
         String notificationListenerString = Settings.Secure.getString(this.getContentResolver(),"enabled_notification_listeners");
         //Check notifications access permission
-        return !(notificationListenerString == null || !notificationListenerString.contains(getPackageName()));
-
+        notificationOk = !(notificationListenerString == null || !notificationListenerString.contains(getPackageName()));
+        return notificationOk;
     }
 
     private void notificationClick(Context c) {

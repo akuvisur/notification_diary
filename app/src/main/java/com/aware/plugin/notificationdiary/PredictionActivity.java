@@ -1,34 +1,25 @@
 package com.aware.plugin.notificationdiary;
 
+import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Context;
-import android.database.Cursor;
+import android.content.DialogInterface;
+import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-import com.aware.Aware;
-import com.aware.Aware_Preferences;
-import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
-import com.aware.plugin.notificationdiary.Providers.Provider;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
-import com.aware.providers.Aware_Provider;
 
 import java.util.ArrayList;
-
-import static com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI;
 
 public class PredictionActivity extends AppCompatActivity {
 
@@ -92,15 +83,30 @@ public class PredictionActivity extends AppCompatActivity {
         reject_all.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                initDbConnection();
-                helper.batchUpdatePredictions(context, predictions, 0);
-                predictions.clear();
-                prediction_list.invalidate();
-                adapter.notifyDataSetChanged();
-                updateNumPredictions();
-                closeDbConnection();
-
-                finish();
+                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                builder.setTitle("Reject all predictions");
+                builder.setMessage("This will label all predictions as 'incorrect'. Are you sure?");
+                builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        initDbConnection();
+                        helper.batchUpdatePredictions(context, predictions, 0);
+                        predictions.clear();
+                        prediction_list.invalidate();
+                        adapter.notifyDataSetChanged();
+                        updateNumPredictions();
+                        closeDbConnection();
+                        dialog.cancel();
+                        finish();
+                    }
+                });
+                builder.setNegativeButton("Back", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+                builder.setIcon(R.mipmap.ic_launcher);
+                AlertDialog dialog = builder.create();
+                dialog.show();
             }
         });
 

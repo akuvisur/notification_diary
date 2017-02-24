@@ -408,6 +408,7 @@ public class ContentAnalysisService extends Service {
         }
 
         private void storeClassifier(Instances data) {
+            Log.d(TAG, "storeClassifier");
             if (data == null) return;
             tree_db.close();
             wordBins.close();

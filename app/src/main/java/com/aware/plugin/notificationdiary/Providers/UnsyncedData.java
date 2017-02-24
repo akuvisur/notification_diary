@@ -663,6 +663,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         }
 
         syncing = false;
+        close();
     }
 
     @Override

@@ -10,7 +10,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.RingtoneManager;
 import android.os.Bundle;
@@ -191,7 +190,6 @@ public class MainTabs extends AppCompatActivity {
         if (getIntent() != null & getIntent().hasExtra(ENABLE_PREDICTIONS_FLAG)) {
             AppManagement.enablePredictions(this, true);
         }
-
     }
 
     @Override
@@ -253,14 +251,6 @@ public class MainTabs extends AppCompatActivity {
                         startService(startPlugin);
 
                         isAccessibilityServiceActive(context);
-
-                        SharedPreferences sp = getSharedPreferences(AppManagement.SHARED_PREFS, MODE_PRIVATE);
-                        int test_count = sp.getInt(AppManagement.TEST_COUNT, 0);
-                        if (test_count <= 5) {
-                            AppManagement.enablePredictions(context, false);
-                            AppManagement.setOwnNotificationsNeverHidden(context, true);
-                            Toast.makeText(context, "Please change foreground application to test application functionality..", Toast.LENGTH_LONG).show();
-                        }
 
                         if (!isMyServiceRunning(NotificationListener.class, context)) {
                             Intent service = new Intent(context, NotificationListener.class);
@@ -416,7 +406,7 @@ public class MainTabs extends AppCompatActivity {
                                  Bundle savedInstanceState) {
             curFragmentNumber = getArguments().getInt(ARG_SECTION_NUMBER);
             View view;
-            if (activity == null) return new View(context);
+            if (activity == null || context == null) return new View(context);
             switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
                 // Diary view
                 case 1:
@@ -881,6 +871,7 @@ public class MainTabs extends AppCompatActivity {
                     c.startService(srvIntent);
 
                     AppManagement.startDailyModel(c);
+                    AppManagement.enablePredictions(c, true);
 
                     AlertDialog.Builder builder = new AlertDialog.Builder(context);
                     builder.setTitle("Predictions enabled");
@@ -938,6 +929,7 @@ public class MainTabs extends AppCompatActivity {
         if (AppManagement.predictionsEnabled(c)) {
             J48Classifiers modelInfo = new J48Classifiers(c);
             EvaluationResult curResult = modelInfo.getCurrentClassifier();
+            modelInfo.close();
 
             model_accuracy.setText(new DecimalFormat("#.0").format(curResult.accuracy*100) + "%");
 
@@ -956,8 +948,6 @@ public class MainTabs extends AppCompatActivity {
                             "Finally, using the Kappa statistic the model is approximately <b>" + df.format(curResult.kappa*100) + "%</b> better at prediction than a random guess.")
             );
 
-            modelInfo.close();
-
             initDbConnection();
             launch_pred_act.setText("VIEW PREDICTED NOTIFICATIONS (" + helper.getPredictions(context).size() + ")");
             UnsyncedData.ContentImportance importances = helper.getContentImportance(context);
@@ -970,7 +960,7 @@ public class MainTabs extends AppCompatActivity {
         else {
             initDbConnection();
             int training_data_amount = helper.getNumOfTrainingData();
-            if (training_data_amount >= 100) enable_predictions.setEnabled(true);
+            if (training_data_amount >= 50) enable_predictions.setEnabled(true);
             if (DEBUG) enable_predictions.setEnabled(true);
 
             if (progressReceiver != null && progressReceiver.progress == 0) {

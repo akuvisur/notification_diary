@@ -163,15 +163,17 @@ public class NotificationListener extends NotificationListenerService {
                 SCREEN_STATE = Screen.ACTION_AWARE_SCREEN_ON;
                 ActivityApiClient.screenOn();
                 initDbConnection();
-                for (UnsyncedNotification n : arrivedNotifications) {
-                    if (!n.seen) {
-                        n.seen = true;
-                        n.seen_timestamp = System.currentTimeMillis();
-                        ContentValues updated_values = new ContentValues();
-                        updated_values.put(UnsyncedData.Notifications_Table.seen_timestamp, n.seen_timestamp);
-                        updated_values.put(UnsyncedData.Notifications_Table.seen, n.seen);
-                        helper.updateEntry(c, (int) n.sqlite_row_id, updated_values);
-                        Log.d(TAG, "seen: "  + n.title + " / " + n.message);
+                if (arrivedNotifications != null) {
+                    for (UnsyncedNotification n : arrivedNotifications) {
+                        if (!n.seen) {
+                            n.seen = true;
+                            n.seen_timestamp = System.currentTimeMillis();
+                            ContentValues updated_values = new ContentValues();
+                            updated_values.put(UnsyncedData.Notifications_Table.seen_timestamp, n.seen_timestamp);
+                            updated_values.put(UnsyncedData.Notifications_Table.seen, n.seen);
+                            helper.updateEntry(c, (int) n.sqlite_row_id, updated_values);
+                            Log.d(TAG, "seen: " + n.title + " / " + n.message);
+                        }
                     }
                 }
                 if (AppManagement.predictionsEnabled(context)) {
@@ -998,6 +1000,8 @@ public class NotificationListener extends NotificationListenerService {
         ArrayList<UnsyncedNotification> notifications = helper.getUnlabeledNotifications();
         ArrayList<UnsyncedData.Prediction> predictions = helper.getPredictions(c1);
 
+        closeDbConnection();
+
         if (predictions.size() % AppManagement.getRandomNumberInRange(8, 12) == 0 && predictions.size() > 8) {
             NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             Intent launchIntent = new Intent(this, PredictionActivity.class);
@@ -1048,7 +1052,6 @@ public class NotificationListener extends NotificationListenerService {
 
         try {
             double result = tree.classifyInstance(evaluated_notification.firstInstance());
-            closeDbConnection();
             Log.d(TAG, "evaluated as: " + (result > 0.5));
             return (result > 0.5);
         }
@@ -1056,7 +1059,6 @@ public class NotificationListener extends NotificationListenerService {
             Log.d(TAG, "could not classify");
             e.printStackTrace();
         }
-        closeDbConnection();
         return true;
     }
 

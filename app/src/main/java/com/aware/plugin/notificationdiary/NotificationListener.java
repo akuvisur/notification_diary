@@ -155,13 +155,15 @@ public class NotificationListener extends NotificationListenerService {
             else if (intent.getAction().equals(Screen.ACTION_AWARE_SCREEN_OFF)) {
                 Log.d(TAG, "Screen: " + intent.getAction());
                 SCREEN_STATE = intent.getAction();
-                ActivityApiClient.screenOff();
+                ActivityApiClient.screenOff(context);
             }
 
             else if (intent.getAction().equals(Screen.ACTION_AWARE_SCREEN_ON) || intent.getAction().equals(Screen.ACTION_AWARE_SCREEN_UNLOCKED)) {
                 Log.d(TAG, "Screen: " + intent.getAction());
                 SCREEN_STATE = Screen.ACTION_AWARE_SCREEN_ON;
-                ActivityApiClient.screenOn();
+
+                ActivityApiClient.screenOn(context);
+
                 initDbConnection();
                 if (arrivedNotifications != null) {
                     for (UnsyncedNotification n : arrivedNotifications) {
@@ -419,6 +421,7 @@ public class NotificationListener extends NotificationListenerService {
     @Override
     public void onDestroy() {
         if (repeatingIntent != null) alarmManager.cancel(repeatingIntent);
+        closeDbConnection();
         unregisterReceiver(ar);
     }
 
@@ -472,7 +475,7 @@ public class NotificationListener extends NotificationListenerService {
             return;
         }
         // if app in blacklist
-        else if (AppManagement.BLACKLIST.contains(sbn.getPackageName())) {
+        else if (AppManagement.isBlacklisted(sbn.getPackageName())) {
             return;
         }
 
@@ -629,7 +632,7 @@ public class NotificationListener extends NotificationListenerService {
     HashMap<StatusBarNotification, String> interactionForegroundApplications = new HashMap<>();
     public void onNotificationRemoved(StatusBarNotification sbn) {
         String packageName = sbn.getPackageName();
-        if (!AppManagement.BLACKLIST.contains(packageName)) {
+        if (!AppManagement.isBlacklisted(packageName)) {
             new Thread(new StatusBarNotificationCheckedRunnable(sbn, System.currentTimeMillis())).start();
         }
         else Log.d(TAG, "Blacklisted app");
@@ -661,11 +664,19 @@ public class NotificationListener extends NotificationListenerService {
                         apps_run.close();
                     }
                     checkNotificationInteraction(notif, runApps);
-                    initDbConnection();
-                    int count = (helper.getPredictions(context).size() + helper.countUnlabeledNotifications());
-                    if (count > 0) BadgeUtils.setBadge(context, count);
-                    else BadgeUtils.clearBadge(context);
-                    closeDbConnection();
+                    try {
+                        initDbConnection();
+                        if (helper != null) {
+                            int count = (helper.getPredictions(context).size() + helper.countUnlabeledNotifications());
+                            if (count > 0) BadgeUtils.setBadge(context, count);
+                            else BadgeUtils.clearBadge(context);
+                        }
+                        closeDbConnection();
+                    }
+                    catch (Exception e) {
+                        // crashed due to multiple processses here
+                        Log.d(TAG, "crash while updating badge from multiple ongoing checks");
+                    }
                 }
             }, AppManagement.INTERACTION_CHECK_DELAY);
         }

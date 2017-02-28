@@ -70,8 +70,9 @@ public class AppManagement {
 
     public static ArrayList<String> BLACKLIST = new ArrayList<>();
 
-    public static void init(Context c) {
+    public static void init() {
         BLACKLIST.add("android");
+        BLACKLIST.add("com.android.systemui");
         // messaging action button does not launch an activity so dismiss/click is uncertain
         BLACKLIST.add("com.facebook.orca");
         // notifications launch different application (appstore)
@@ -80,7 +81,14 @@ public class AppManagement {
         BLACKLIST.add("com.sec.android.app.clockpackage");
         // call
         BLACKLIST.add("com.android.incallui");
-        BLACKLIST.add("android");
+        // VPN app that spams notifications
+        BLACKLIST.add("com.privateinternetaccess.android");
+
+    }
+
+    public static boolean isBlacklisted(String package_name) {
+        if (BLACKLIST.isEmpty()) init();
+        return BLACKLIST.contains(package_name);
     }
 
     public static Boolean predictionsEnabled(Context c) {

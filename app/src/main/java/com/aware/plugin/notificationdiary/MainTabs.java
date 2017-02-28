@@ -122,7 +122,11 @@ public class MainTabs extends AppCompatActivity {
         // Create the adapter that will return a fragment for each of the three
         // primary sections of the activity.
 
-        mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager(), this, this);
+        mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager(), getApplicationContext(), this);
+        if (savedInstanceState == null) {
+            mSectionsPagerAdapter.setActivity(this);
+            mSectionsPagerAdapter.setContext(this);
+        }
 
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.container);
@@ -156,7 +160,7 @@ public class MainTabs extends AppCompatActivity {
 
         context = this;
 
-        AppManagement.init(this);
+        AppManagement.init();
 
         LAUNCH_PERMISSIONS.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
@@ -406,19 +410,31 @@ public class MainTabs extends AppCompatActivity {
                                  Bundle savedInstanceState) {
             curFragmentNumber = getArguments().getInt(ARG_SECTION_NUMBER);
             View view;
-            if (activity == null || context == null) return new View(context);
-            switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
-                // Diary view
-                case 1:
-                    return activity.generateDiaryView(context, inflater, container);
-                case 2:
-                    return activity.generatePredictionView(context,inflater, container);
-                case 3:
-                    return activity.generateHelpView(context,inflater, container);
-                case 4:
-                    return activity.generateSettingsView(context, inflater, container);
-                default:
-                    return activity.generateDiaryView(context, inflater, container);
+            Log.d(TAG, "onCreateView " + (context == null) + " " + (activity == null));
+            try {
+                if (activity == null) {
+                    Log.d(TAG, "returning empty view");
+                    return new View(context);
+                }
+                switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
+                    // Diary view
+                    case 1:
+                        return activity.generateDiaryView(context, inflater, container);
+                    case 2:
+                        return activity.generatePredictionView(context, inflater, container);
+                    case 3:
+                        return activity.generateHelpView(context, inflater, container);
+                    case 4:
+                        return activity.generateSettingsView(context, inflater, container);
+                    default:
+                        return activity.generateDiaryView(context, inflater, container);
+                }
+            }
+            catch (Exception e) {
+                Log.d(TAG, "fragment crashed");
+                Intent restartMain = new Intent(context, MainTabs.class);
+                startActivity(restartMain);
+                return new View(context);
             }
         }
     }
@@ -1080,11 +1096,19 @@ public class MainTabs extends AppCompatActivity {
             activity = a;
         }
 
+        public void setActivity(MainTabs a) {
+            this.activity = a;
+        }
+
+        public void setContext(Context c) {
+            this.context = c;
+        }
+
         @Override
         public Fragment getItem(int position) {
             // getItem is called to instantiate the fragment for the given page.
             // Return a PlaceholderFragment (defined as a static inner class below).
-            curFragment = PlaceholderFragment.newInstance(position + 1, context, activity);
+            curFragment = PlaceholderFragment.newInstance(position + 1, activity.getApplicationContext(), activity);
             return curFragment;
         }
 
@@ -1115,7 +1139,7 @@ public class MainTabs extends AppCompatActivity {
             NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(c);
             mBuilder.setSmallIcon(R.drawable.ic_notif_icon);
             mBuilder.setContentTitle("Please enable Notification Diary");
-            mBuilder.setContentText(c.getResources().getString(R.string.aware_activate_accessibility));
+            if (c != null) mBuilder.setContentText(c.getResources().getString(R.string.aware_activate_accessibility));
             mBuilder.setAutoCancel(true);
             mBuilder.setOnlyAlertOnce(true); //notify the user only once
             mBuilder.setDefaults(NotificationCompat.DEFAULT_ALL);

@@ -12,8 +12,8 @@ android {
         applicationId "com.aware.plugin.notificationdiary"
         minSdkVersion 21
         targetSdkVersion 25
-        versionCode 26
-        versionName "chocolate apple"
+        versionCode 29
+        versionName "chocolate haystack"
         multiDexEnabled true
     }
 

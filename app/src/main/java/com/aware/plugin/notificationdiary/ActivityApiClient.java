@@ -21,7 +21,7 @@ public class ActivityApiClient implements GoogleApiClient.ConnectionCallbacks, G
 
     private static GoogleApiClient mApiClient;
 
-    private static Context context;
+    private Context context;
 
     public ActivityApiClient(Context c) {
         this.context = c;
@@ -37,20 +37,30 @@ public class ActivityApiClient implements GoogleApiClient.ConnectionCallbacks, G
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         Log.d(TAG, "connected");
-        if (NotificationListener.SCREEN_STATE == Screen.ACTION_AWARE_SCREEN_OFF) screenOff();
-        else screenOn();
+        if (NotificationListener.SCREEN_STATE.equals(Screen.ACTION_AWARE_SCREEN_OFF)) screenOff(context);
+        else screenOn(context);
     }
 
-    public static void screenOff() {
-        Intent intent = new Intent( context, ActivityService.class );
-        PendingIntent pendingIntent = PendingIntent.getService( context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT );
-        ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates( mApiClient, 600000, pendingIntent );
+    static void screenOff(Context c) {
+        try {
+            Intent intent = new Intent(c, ActivityService.class);
+            PendingIntent pendingIntent = PendingIntent.getService(c, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+            ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(mApiClient, 600000, pendingIntent);
+        }
+        catch (Exception e) {
+            Log.d(TAG, "GoogleApiClient not connected");
+        }
     }
 
-    public static void screenOn() {
-        Intent intent = new Intent( context, ActivityService.class );
-        PendingIntent pendingIntent = PendingIntent.getService( context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT );
-        ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates( mApiClient, 30000, pendingIntent );
+    static void screenOn(Context c) {
+        try {
+            Intent intent = new Intent(c, ActivityService.class );
+            PendingIntent pendingIntent = PendingIntent.getService(c, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT );
+            ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates( mApiClient, 30000, pendingIntent );
+        }
+        catch (Exception e) {
+            Log.d(TAG, "GoogleApiClient not connected");
+        }
     }
 
     @Override

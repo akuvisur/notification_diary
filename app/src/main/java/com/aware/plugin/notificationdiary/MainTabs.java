@@ -464,7 +464,7 @@ public class MainTabs extends AppCompatActivity {
 
         notification_layout = (RelativeLayout) rootView.findViewById(R.id.notification_layout);
         notification_app_name = (TextView) rootView.findViewById(R.id.diary_appname);
-        notification_message= (TextView) rootView.findViewById(R.id.diary_contents);
+        notification_message = (TextView) rootView.findViewById(R.id.diary_contents);
         notification_title = (TextView) rootView.findViewById(R.id.diary_title);
         notification_timestamp = (TextView) rootView.findViewById(R.id.diary_timestamp);
 
@@ -481,13 +481,13 @@ public class MainTabs extends AppCompatActivity {
                         public void run() {
                             NotificationCompat.Builder builder = (NotificationCompat.Builder) new NotificationCompat.Builder(context)
                                     .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                                    .setContentTitle("a"+System.currentTimeMillis())
+                                    .setContentTitle("a" + System.currentTimeMillis())
                                     .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                                     .setContentText("asdf!" + System.currentTimeMillis());
                             NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
                             notificationManager.notify((int) (System.currentTimeMillis() % 12345), builder.build());
                         }
-                    },2000);
+                    }, 2000);
 
                     Intent startMain = new Intent(Intent.ACTION_MAIN);
                     startMain.addCategory(Intent.CATEGORY_HOME);
@@ -529,8 +529,7 @@ public class MainTabs extends AppCompatActivity {
                     content_value.setRating(0F);
                     content_unsure_button.setBackgroundResource(R.color.colorAccent);
                     content_inputted = true;
-                }
-                else {
+                } else {
                     content_unsure_button.setBackgroundResource(R.color.colorPrimaryLight);
                     content_inputted = false;
                 }
@@ -548,8 +547,7 @@ public class MainTabs extends AppCompatActivity {
                     timing_value.setRating(0F);
                     timing_unsure_button.setBackgroundResource(R.color.colorAccent);
                     timing_inputted = true;
-                }
-                else {
+                } else {
                     timing_unsure_button.setBackgroundResource(R.color.colorPrimaryLight);
                     timing_inputted = false;
                 }
@@ -638,7 +636,7 @@ public class MainTabs extends AppCompatActivity {
                     public void run() {
                         skipAll(remainingNotifications.get(0).application_package, context);
                     }
-                },200);
+                }, 200);
             }
         });
 
@@ -658,13 +656,13 @@ public class MainTabs extends AppCompatActivity {
                         public void run() {
                             NotificationCompat.Builder builder = (NotificationCompat.Builder) new NotificationCompat.Builder(context)
                                     .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                                    .setContentTitle("a"+System.currentTimeMillis())
+                                    .setContentTitle("a" + System.currentTimeMillis())
                                     .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                                     .setContentText("asdf!" + System.currentTimeMillis());
                             NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
                             notificationManager.notify((int) (System.currentTimeMillis() % 12345), builder.build());
                         }
-                    },2000);
+                    }, 2000);
 
                     Intent startMain = new Intent(Intent.ACTION_MAIN);
                     startMain.addCategory(Intent.CATEGORY_HOME);
@@ -688,7 +686,7 @@ public class MainTabs extends AppCompatActivity {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    new UnsyncedData(context).syncAlltoProvider(context);
+                    if (helper != null) helper.syncAlltoProvider(context);
                 }
             }).run();
         }

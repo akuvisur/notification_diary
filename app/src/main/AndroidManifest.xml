@@ -33,8 +33,8 @@
         <activity
             android:name=".MainTabs"
             android:label="@string/title_activity_main_tabs"
-            android:theme="@style/AppTheme.NoActionBar"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -66,10 +66,14 @@
             android:name=".PredictionActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="@string/title_activity_prediction"
-            android:theme="@style/FullscreenTheme"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait"
+            android:theme="@style/FullscreenTheme" />
         <activity android:name=".Tutorial.TutorialActivity" />
 
+        <service
+            android:name=".ProviderSyncService"
+            android:enabled="true"
+            android:exported="true"></service>
     </application>
 
 </manifest>

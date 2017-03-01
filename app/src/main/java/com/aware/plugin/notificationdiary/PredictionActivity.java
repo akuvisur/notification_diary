@@ -181,7 +181,7 @@ public class PredictionActivity extends AppCompatActivity {
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            if (items.size() <= i) items.remove(i);
+                            if (items.size() <= i && items.size() > 0) items.remove(i);
                             notifyDataSetChanged();
                             updateNumPredictions();
                         }
@@ -202,7 +202,7 @@ public class PredictionActivity extends AppCompatActivity {
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            if (items.size() <= i) items.remove(i);
+                            if (items.size() <= i && items.size() > 0) items.remove(i);
                             notifyDataSetChanged();
                             updateNumPredictions();
                         }

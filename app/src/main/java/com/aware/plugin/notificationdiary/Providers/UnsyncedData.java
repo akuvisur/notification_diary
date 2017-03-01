@@ -2,6 +2,7 @@ package com.aware.plugin.notificationdiary.Providers;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -12,6 +13,7 @@ import com.aware.Aware_Preferences;
 import com.aware.plugin.google.fused_location.Provider;
 import com.aware.plugin.notificationdiary.AppManagement;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
+import com.aware.plugin.notificationdiary.ProviderSyncService;
 import com.aware.plugin.notificationdiary.R;
 import com.aware.plugin.notificationdiary.Utils;
 
@@ -190,7 +192,16 @@ public class UnsyncedData extends SQLiteOpenHelper {
     public synchronized void updateEntry(final Context c, int id, ContentValues updated_values) {
         init();
         database.update(DATABASE_NAME, updated_values, Notifications_Table._ID + "=? " , new String[]{String.valueOf(id)});
-        if (!syncing && ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(c) > AppManagement.SYNC_DELAY))) syncAlltoProvider(c);
+        if (!syncing && ((System.currentTimeMillis() - AppManagement.getSyncTimestamp(c) > AppManagement.SYNC_DELAY))) {
+            try {
+                syncAlltoProvider(c);
+            }
+            catch (Exception e) {
+                Log.d(TAG, "error when syncing all");
+                Intent startSync = new Intent(c, ProviderSyncService.class);
+                c.startService(startSync);
+            }
+        }
     }
 
     public synchronized ArrayList<UnsyncedNotification> getUnlabeledNotifications() {
@@ -555,120 +566,135 @@ public class UnsyncedData extends SQLiteOpenHelper {
     private static boolean syncing = false;
     public void syncAlltoProvider(Context c) {
         if (syncing) return;
-        syncing = true;
-
-        init();
-
-        AppManagement.setSyncTimestamp(c, System.currentTimeMillis());
-
-        Log.d(TAG, "Syncing local database in order to be uploaded...");
-        Cursor cursor = database.query(
-            DATABASE_NAME,
-            null, Notifications_Table.synced + " < 1 ", null, null,null, Notifications_Table.generate_timestamp + " ASC LIMIT 250"
-        );
-        String interaction;
-        int predicted;
-        boolean sync;
-        ArrayList<Integer> ids = new ArrayList<>();
-        if (cursor != null) {
-            while (cursor.moveToNext()) {
-                if (cursor.getInt(cursor.getColumnIndex(Notifications_Table.synced)) == 1) {
-                    Log.d(TAG, "was already synced");
-                    continue;
-                }
-                sync = false;
-                interaction = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
-                predicted = cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
-                int prediction_correct = cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
-                int labeled = cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled));
-                if (interaction == null) interaction = "";
-                // predictions were on
-                if (predicted > -1) {
-                    // if not interacted with yet
-                    if (interaction == null || (interaction != null && interaction.equals(""))) {
-                        sync = false;
-                    }
-                    // dismissed and labeled/skipped, and verified
-                    else if (interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) &&
-                            cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) != 0 &&
-                            cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > -1) {
-                        sync = true;
-                    }
-                    // not dismissed and prediction verified
-                    else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) && cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > -1) {
-                        sync = true;
-                    }
-                    else if (interaction.equals(AppManagement.INTERACTION_TYPE_REPLACE)) sync = true;
-                    // duplicate
-                    else if (prediction_correct == -2) sync = true;
-                }
-                // predictions werent on
-                else {
-                    // also labeled or skipped
-                    if (interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) &&
-                            cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) != 0) {
-                        sync = true;
-                    }
-                    // if not dismissed
-                    else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS)) sync = true;
-                }
-                if (sync) {
-                    ids.add(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)));
-                    UnsyncedNotification u = new UnsyncedNotification();
-                    u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp));
-                    u.seen = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp)) > 0;
-                    u.notification_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table.notification_id));
-                    u.generate_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.generate_timestamp));
-                    u.interaction_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.interaction_timestamp));
-                    u.application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package));
-                    u.notification_category = cursor.getString(cursor.getColumnIndex(Notifications_Table.notification_category)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.notification_category));
-                    u.interaction_type = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
-                    u.activity = cursor.getString(cursor.getColumnIndex(Notifications_Table.activity)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.activity));
-                    u.battery_level = cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level));
-                    u.foreground_application_package = (cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package)) == null || cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package)) == "")
-                            ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package));
-
-                    u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
-                    u.wifi_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability));
-                    u.network_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability));
-                    u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
-                    u.screen_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode));
-                    u.ringer_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode));
-                    u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));
-
-                    u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
-                    u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
-                    u.labeled = cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) > 0;
-                    u.predicted_as_show = cursor.getString(cursor.getColumnIndex(Notifications_Table.predicted_as_show)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
-                    u.prediction_correct = cursor.getString(cursor.getColumnIndex(Notifications_Table.prediction_correct)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
-                    Log.d(TAG, "synced: " + u.toString() + " " + u.interaction_type);
-                    c.getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, u.toSyncableContentValues(c));
-                }
-            }
-            cursor.close();
-        }
-
-        init();
-        database.beginTransaction();
-
-        ContentValues values = new ContentValues();
-        values.put(Notifications_Table.synced, "1");
         try {
-            for (Integer id : ids) {
-                database.update(DATABASE_NAME, values, "_id=" + id, null);
-            }
-            database.setTransactionSuccessful();
-        } finally {
-            database.endTransaction();
-        }
+            syncing = true;
 
-        syncing = false;
-        close();
+            init();
+
+            AppManagement.setSyncTimestamp(c, System.currentTimeMillis());
+
+            Log.d(TAG, "Syncing local database in order to be uploaded...");
+            Cursor cursor = database.query(
+                    DATABASE_NAME,
+                    null, Notifications_Table.synced + " < 1 ", null, null, null, Notifications_Table.generate_timestamp + " ASC LIMIT 250"
+            );
+            String interaction;
+            int predicted;
+            boolean sync;
+            ArrayList<Integer> ids = new ArrayList<>();
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    if (cursor.getInt(cursor.getColumnIndex(Notifications_Table.synced)) == 1) {
+                        Log.d(TAG, "was already synced");
+                        continue;
+                    }
+                    sync = false;
+                    interaction = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
+                    predicted = cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
+                    int prediction_correct = cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
+                    int labeled = cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled));
+                    if (interaction == null) interaction = "";
+                    // predictions were on
+                    if (predicted > -1) {
+                        // if not interacted with yet
+                        if (interaction == null || (interaction != null && interaction.equals(""))) {
+                            sync = false;
+                        }
+                        // dismissed and labeled/skipped, and verified
+                        else if (interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) &&
+                                cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) != 0 &&
+                                cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > -1) {
+                            sync = true;
+                        }
+                        // not dismissed and prediction verified
+                        else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) && cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct)) > -1) {
+                            sync = true;
+                        } else if (interaction.equals(AppManagement.INTERACTION_TYPE_REPLACE))
+                            sync = true;
+                            // duplicate
+                        else if (prediction_correct == -2) sync = true;
+                    }
+                    // predictions werent on
+                    else {
+                        // also labeled or skipped
+                        if (interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS) &&
+                                cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) != 0) {
+                            sync = true;
+                        }
+                        // if not dismissed
+                        else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS))
+                            sync = true;
+                    }
+                    if (sync) {
+                        ids.add(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)));
+                        UnsyncedNotification u = new UnsyncedNotification();
+                        u.seen_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp));
+                        u.seen = cursor.getLong(cursor.getColumnIndex(Notifications_Table.seen_timestamp)) > 0;
+                        u.notification_id = cursor.getInt(cursor.getColumnIndex(Notifications_Table.notification_id));
+                        u.generate_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.generate_timestamp));
+                        u.interaction_timestamp = cursor.getLong(cursor.getColumnIndex(Notifications_Table.interaction_timestamp));
+                        u.application_package = cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.application_package));
+                        u.notification_category = cursor.getString(cursor.getColumnIndex(Notifications_Table.notification_category)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.notification_category));
+                        u.interaction_type = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
+                        u.activity = cursor.getString(cursor.getColumnIndex(Notifications_Table.activity)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.activity));
+                        u.battery_level = cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.battery_level));
+                        u.foreground_application_package = (cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package)) == null || cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package)) == "")
+                                ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.foreground_application_package));
+
+                        u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
+                        u.wifi_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.wifi_availability));
+                        u.network_availability = cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.network_availability));
+                        u.location = cursor.getString(cursor.getColumnIndex(Notifications_Table.location)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.location));
+                        u.screen_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.screen_mode));
+                        u.ringer_mode = cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.ringer_mode));
+                        u.headphone_jack = cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack)) == null ? EMPTY_VALUE : cursor.getString(cursor.getColumnIndex(Notifications_Table.headphone_jack));
+
+                        u.content_importance_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.content_importance));
+                        u.timing_value = cursor.getDouble(cursor.getColumnIndex(Notifications_Table.timing));
+                        u.labeled = cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)) > 0;
+                        u.predicted_as_show = cursor.getString(cursor.getColumnIndex(Notifications_Table.predicted_as_show)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.predicted_as_show));
+                        u.prediction_correct = cursor.getString(cursor.getColumnIndex(Notifications_Table.prediction_correct)) == null ? -1 : cursor.getInt(cursor.getColumnIndex(Notifications_Table.prediction_correct));
+                        Log.d(TAG, "synced: " + u.toString() + " " + u.interaction_type);
+                        c.getContentResolver().insert(com.aware.plugin.notificationdiary.Providers.Provider.Notifications_Data.CONTENT_URI, u.toSyncableContentValues(c));
+                    }
+                }
+                cursor.close();
+            }
+
+            if (database.isOpen()) {
+                database.beginTransaction();
+
+                ContentValues values = new ContentValues();
+                values.put(Notifications_Table.synced, "1");
+                try {
+                    for (Integer id : ids) {
+                        database.update(DATABASE_NAME, values, "_id=" + id, null);
+                    }
+                    database.setTransactionSuccessful();
+                } finally {
+                    database.endTransaction();
+                }
+            }
+
+            else {
+                Intent startSync = new Intent(c, ProviderSyncService.class);
+                c.startService(startSync);
+            }
+
+            syncing = false;
+            close();
+        }
+        catch (Exception e) {
+            Log.d(TAG, "database already closed?");
+            Intent startSync = new Intent(c, ProviderSyncService.class);
+            c.startService(startSync);
+        }
     }
 
     @Override
     public void close() {
         if (database != null && database.isOpen()) database.close();
+        database = null;
     }
 
     public class Prediction {

@@ -307,25 +307,6 @@ public class NotificationListener extends NotificationListenerService {
         super.onStartCommand(intent, flags, something);
         context = this;
 
-        /*
-        Aware.startScheduler(this);
-
-        try {
-            Scheduler.Schedule sch = Scheduler.getSchedule(this, "restart_notificationlistener");
-            if (sch == null) {
-                sch = new Scheduler.Schedule("restart_notificationlistener");
-                sch.setActionClass(getPackageName() + "/" + getClass().getName())
-                        .setActionType(Scheduler.ACTION_TYPE_SERVICE)
-                        .setInterval(15);
-                Scheduler.saveSchedule(this, sch);
-            } else {}
-
-        }
-        catch (JSONException e) {
-            e.printStackTrace();
-        }
-*/
-
         if (statusMonitor == null) { //not set yet
             statusMonitor = new Intent(this, NotificationListener.class);
             statusMonitor.setAction(ACTION_KEEP_ALIVE);
@@ -349,16 +330,21 @@ public class NotificationListener extends NotificationListenerService {
                         repeatingIntent);
             }
         }
-        initDbConnection();
-        helper.syncAlltoProvider(this);
-        closeDbConnection();
-
-        if (arrivedNotifications == null) {
+        try {
             initDbConnection();
-            arrivedNotifications = helper.getArrivedNotifications();
-            closeDbConnection();
-        }
+            helper.syncAlltoProvider(this);
 
+            if (arrivedNotifications == null) {
+                initDbConnection();
+                arrivedNotifications = helper.getArrivedNotifications();
+                closeDbConnection();
+            }
+        }
+        catch (Exception e) {
+            Log.d(TAG, "Something crashed while processing non-critical database reads and writes during startup");
+            Intent startSync = new Intent(this, ProviderSyncService.class);
+            startService(startSync);
+        }
         MainTabs.isAccessibilityServiceActive(this);
         return START_STICKY;
     }

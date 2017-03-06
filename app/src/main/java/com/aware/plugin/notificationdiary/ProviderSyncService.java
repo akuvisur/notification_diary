@@ -4,6 +4,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
+import android.util.Log;
 
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 
@@ -15,6 +16,8 @@ public class ProviderSyncService extends Service {
 
     @Override
     public int onStartCommand(Intent i, int i1, int it2) {
+        Log.d("ProviderSync", "starting service to sync");
+
         UnsyncedData h = new UnsyncedData(this);
 
         h.syncAlltoProvider(this);

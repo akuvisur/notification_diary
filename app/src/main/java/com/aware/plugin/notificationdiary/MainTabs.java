@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -66,6 +67,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.aware.plugin.notificationdiary.AppManagement.isMyServiceRunning;
+import static com.aware.plugin.notificationdiary.ContentAnalysisService.RETURN_TO_MAIN;
 
 
 public class MainTabs extends AppCompatActivity {
@@ -76,6 +78,7 @@ public class MainTabs extends AppCompatActivity {
     public static final String DIARY_TAB = "DIARY_TAB";
     public static final String PREDICTION_TAB = "PREDICTION_TAB";
     public static final String ENABLE_PREDICTIONS_FLAG = "ENABLE_PREDICTIONS_FLAG";
+    public static final String RESTART_MAIN_ACTIVITY = "DIARY_RESTART_MAIN_ACTIVITY";
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -98,6 +101,21 @@ public class MainTabs extends AppCompatActivity {
         if (helper != null) {
             helper.close();
             helper = null;
+        }
+    }
+
+    private RestartReceiver restartReceiver;
+    private class RestartReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Intent restart = new Intent(context, MainTabs.class);
+            restart.putExtra(START_WITH_TAB, PREDICTION_TAB);
+            restart.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            // enable predictions once taken back
+            restart.putExtra(MainTabs.ENABLE_PREDICTIONS_FLAG, true);
+
+            finish();
+            startActivity(restart);
         }
     }
 
@@ -157,6 +175,11 @@ public class MainTabs extends AppCompatActivity {
             @Override
             public void onPageScrollStateChanged(int state) {}
         });
+
+        IntentFilter restartFilter = new IntentFilter();
+        restartFilter.addAction(RESTART_MAIN_ACTIVITY);
+        restartReceiver = new RestartReceiver();
+        registerReceiver(restartReceiver, restartFilter);
 
         context = this;
 
@@ -299,6 +322,12 @@ public class MainTabs extends AppCompatActivity {
         if (count > 0) BadgeUtils.setBadge(context, count);
         else BadgeUtils.clearBadge(context);
         closeDbConnection();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (restartReceiver != null) unregisterReceiver(restartReceiver);
     }
 
     @Override
@@ -806,6 +835,7 @@ public class MainTabs extends AppCompatActivity {
                     classifier_progress_text.setVisibility(View.VISIBLE);
 
                     Intent srvIntent = new Intent(c, ContentAnalysisService.class);
+                    srvIntent.putExtra(RETURN_TO_MAIN, true);
                     c.startService(srvIntent);
                 }
             });
@@ -881,7 +911,7 @@ public class MainTabs extends AppCompatActivity {
                     classifier_progress_text.setVisibility(View.VISIBLE);
 
                     Intent srvIntent = new Intent(c, ContentAnalysisService.class);
-                    srvIntent.putExtra("RETURN_TO_MAIN", true);
+                    srvIntent.putExtra(RETURN_TO_MAIN, true);
                     c.startService(srvIntent);
 
                     AppManagement.startDailyModel(c);

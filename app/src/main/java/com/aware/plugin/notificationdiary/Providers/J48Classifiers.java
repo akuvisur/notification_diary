@@ -7,7 +7,6 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import com.aware.plugin.google.fused_location.*;
 import com.aware.plugin.google.fused_location.Provider;
 import com.aware.plugin.notificationdiary.ContentAnalysis.EvaluationResult;
 
@@ -53,7 +52,7 @@ public class J48Classifiers extends SQLiteOpenHelper {
 
     public EvaluationResult getCurrentClassifier() {
         init();
-        EvaluationResult result = new EvaluationResult(0.0,0.0,1.0,1.0,0.0,15);;
+        EvaluationResult result = new EvaluationResult(0.0,0.0,1.0,1.0,0.0,15);
         Cursor cursor = database.query(DATABASE_NAME,
                 null,
                 null,
@@ -71,6 +70,23 @@ public class J48Classifiers extends SQLiteOpenHelper {
                     cursor.getInt(cursor.getColumnIndex(Classifiers_Table.num_clusters))
             );
             cursor.close();
+        }
+        database.close();
+        return result;
+    }
+
+    public Long getClassifierTimestamp() {
+        init();
+        Long result = System.currentTimeMillis();
+        Cursor cursor = database.query(DATABASE_NAME,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Classifiers_Table.generate_timestamp + " DESC LIMIT 1");
+        if (cursor.moveToFirst()) {
+            result = cursor.getLong(cursor.getColumnIndex(Classifiers_Table.TIMESTAMP));
         }
         database.close();
         return result;

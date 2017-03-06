@@ -19,6 +19,7 @@ import com.aware.plugin.notificationdiary.Utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -497,6 +498,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
         int verified;
         String interaction;
         ArrayList<Long> duplicate_ids = new ArrayList<>();
+        ArrayList<String> duplicateTexts = new ArrayList<>();
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 interaction = cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type));
@@ -515,12 +517,20 @@ public class UnsyncedData extends SQLiteOpenHelper {
                             cursor.getInt(cursor.getColumnIndex(Notifications_Table.labeled)),
                             cursor.getString(cursor.getColumnIndex(Notifications_Table.interaction_type))
                     );
+                    String t = cursor.getString(cursor.getColumnIndex(Notifications_Table.title)) + cursor.getString(cursor.getColumnIndex(Notifications_Table.message));
                     // dont add duplicates
                     if (result.contains(p)) {
                         duplicate_ids.add(p.sqlite_id);
                     }
+                    // or duplicate with similar texts
+                    else if (duplicateTexts.contains(t.substring(0,Math.min(30, t.length())))) {
+                        duplicate_ids.add(p.sqlite_id);
+                    }
                     // max size 50
-                    else if (result.size() <= 50) result.add(p);
+                    else if (result.size() <= 50) {
+                        result.add(p);
+                        duplicateTexts.add(t.substring(0,Math.min(30, t.length())));
+                    }
                     else break;
                 }
             }
@@ -564,19 +574,24 @@ public class UnsyncedData extends SQLiteOpenHelper {
     }
 
     private static boolean syncing = false;
-    public void syncAlltoProvider(Context c) {
+    public synchronized void syncAlltoProvider(Context c) {
         if (syncing) return;
         try {
             syncing = true;
 
             init();
 
+            // always sync information that is 5+ days old
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_YEAR, -5);
+            Long too_old = cal.getTimeInMillis();
+
             AppManagement.setSyncTimestamp(c, System.currentTimeMillis());
 
             Log.d(TAG, "Syncing local database in order to be uploaded...");
             Cursor cursor = database.query(
                     DATABASE_NAME,
-                    null, Notifications_Table.synced + " < 1 ", null, null, null, Notifications_Table.generate_timestamp + " ASC LIMIT 250"
+                    null, Notifications_Table.synced + " < 1 ", null, null, null, Notifications_Table.generate_timestamp + " ASC LIMIT 2000"
             );
             String interaction;
             int predicted;
@@ -584,6 +599,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
             ArrayList<Integer> ids = new ArrayList<>();
             if (cursor != null) {
                 while (cursor.moveToNext()) {
+                    // if for some reason synced?
                     if (cursor.getInt(cursor.getColumnIndex(Notifications_Table.synced)) == 1) {
                         Log.d(TAG, "was already synced");
                         continue;
@@ -597,7 +613,7 @@ public class UnsyncedData extends SQLiteOpenHelper {
                     // predictions were on
                     if (predicted > -1) {
                         // if not interacted with yet
-                        if (interaction == null || (interaction != null && interaction.equals(""))) {
+                        if (interaction.equals("")) {
                             sync = false;
                         }
                         // dismissed and labeled/skipped, and verified
@@ -622,8 +638,9 @@ public class UnsyncedData extends SQLiteOpenHelper {
                             sync = true;
                         }
                         // if not dismissed
-                        else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS))
-                            sync = true;
+                        else if (!interaction.equals(AppManagement.INTERACTION_TYPE_DISMISS)) sync = true;
+                        // if too old entry
+                        else if (cursor.getLong(cursor.getColumnIndex(Notifications_Table.TIMESTAMP)) < too_old) sync = true;
                     }
                     if (sync) {
                         ids.add(cursor.getInt(cursor.getColumnIndex(Notifications_Table._ID)));

@@ -21,6 +21,12 @@ public class ClusterGenerator {
     private int CUR_DEPTH = 1;
     private final int MAX_DEPTH = 10;
 
+    HashMap<Node, ArrayList<Cluster>> potentialClusters;
+    ArrayList<Cluster> potentials;
+    HashMap<ClusterNodeTuple, Integer> weights;
+    ArrayList<Node> addedNodes;
+    ArrayList<Node> removeNodes;
+
     public ClusterGenerator(ArrayList<Node> n1, int numClusters) {
         Log.d(TAG, "Calculating clusters");
         clusters = new ArrayList<>();
@@ -29,7 +35,7 @@ public class ClusterGenerator {
         this.nodes = n1;
 
         // remove nodes with no associations (edges)
-        ArrayList<Node> removeNodes = new ArrayList<>();
+        removeNodes = new ArrayList<>();
         for (Node n : nodes) {
             if (n.edges.size() == 0) removeNodes.add(n);
         }
@@ -61,12 +67,11 @@ public class ClusterGenerator {
         // place nodes in clusters based on their distance from centroid
 
         // in case of ties, place nodes based on edge weight
-        HashMap<Node, ArrayList<Cluster>> potentialClusters;
-        HashMap<ClusterNodeTuple, Integer> weights;
+
         int highest_weight = 0;
         ClusterNodeTuple cluster_highest_weight = null;
         // added nodes
-        ArrayList<Node> addedNodes = new ArrayList<>();
+        addedNodes = new ArrayList<>();
 
         // getString nodes surrounding centroids.. then nodes surrounding those nodes, etc. etc. etc.
         while (CUR_DEPTH < MAX_DEPTH) {
@@ -92,7 +97,7 @@ public class ClusterGenerator {
                 // place nodes based on weight to a cluster
                 for (Node node_to_place : potentialClusters.keySet()) {
                     weights = new HashMap<>();
-                    ArrayList<Cluster> potentials = potentialClusters.get(node_to_place);
+                    potentials = potentialClusters.get(node_to_place);
                     // if there is only a single potential, choice is easy
                     if (potentials.size() == 1) {
                         c.addNode(CUR_DEPTH, node_to_place);

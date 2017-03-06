@@ -48,6 +48,8 @@ public class ContentAnalysisService extends Service {
     public static final String UNKNOWN = "UNKNOWN";
     public static final String EMPTY_VALUE = "EMPTY_VALUE";
 
+    public static final String RETURN_TO_MAIN = "RETURN_TO_MAIN";
+
     protected int OPTIMAL_NUM_CLUSTERS = 15;
     private EvaluationResult evaluationResult;
     private EvaluationResult previousEvaluationResult;
@@ -80,7 +82,7 @@ public class ContentAnalysisService extends Service {
 
         OPTIMAL_NUM_CLUSTERS = AppManagement.getNumClusters(context);
 
-        restartmain = i.hasExtra("RETURN_TO_MAIN");
+        restartmain = i.hasExtra(RETURN_TO_MAIN);
 
         new CoreRunnable(context).execute(context);
 
@@ -112,6 +114,7 @@ public class ContentAnalysisService extends Service {
             sendBroadcast(step);
         }
 
+        ClusterGenerator gen;
         @Override
         protected Long doInBackground(Context... params) {
             context = params[0];
@@ -135,7 +138,7 @@ public class ContentAnalysisService extends Service {
             publishProgress(0);
             // iterate through 10,15,20,25,30 clusters to determine best wordbin amount
             for (int num_clusters = 2; num_clusters <= 6; num_clusters++) {
-                ClusterGenerator gen = new ClusterGenerator(new Graph(context).getNodes(), num_clusters*5);
+                gen = new ClusterGenerator(new Graph(context).getNodes(), num_clusters*5);
                 curClusters = gen.getClusters();
                 publishProgress(((num_clusters-1)*20)-15);
 
@@ -164,12 +167,8 @@ public class ContentAnalysisService extends Service {
             publishProgress(100);
 
             if (restartmain) {
-                Intent restartMain = new Intent(context, MainTabs.class);
-                restartMain.putExtra(MainTabs.START_WITH_TAB, MainTabs.PREDICTION_TAB);
-                restartMain.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                // enable predictions once taken back
-                restartMain.putExtra(MainTabs.ENABLE_PREDICTIONS_FLAG, true);
-                context.startActivity(restartMain);
+                Intent restartMain = new Intent(MainTabs.RESTART_MAIN_ACTIVITY);
+                sendBroadcast(restartMain);
             }
             Intent stopIntent = new Intent(context, ContentAnalysisService.class);
             stopService(stopIntent);
@@ -177,6 +176,14 @@ public class ContentAnalysisService extends Service {
             long value = 1;
             return value;
         }
+
+        UnsyncedData helper;
+        ArrayList<UnsyncedNotification> notifications;
+        ArrayList<Attribute> attributes;
+        List<String> classValues;
+        HashMap<String, ArrayList<String>> attributeValuesMap;
+        Instances training_data;
+        ArrayList<String> words;
 
         private Instances buildTrainingData(Context c, int num_clusters) {
             // unsupervised training
@@ -188,14 +195,14 @@ public class ContentAnalysisService extends Service {
             }
             catch (Exception e) {e.printStackTrace();}
 
-            UnsyncedData helper = new UnsyncedData(c);
-            ArrayList<UnsyncedNotification> notifications = helper.getLabeledNotifications();
+            helper = new UnsyncedData(c);
+            notifications = helper.getLabeledNotifications();
             helper.close();
 
             // attributes are notification context + voice bins + class attribute
-            ArrayList<Attribute> attributes = new ArrayList<>(DiaryNotification.CONTEXT_ATTRIBUTE_COUNT+num_clusters+1);
+            attributes = new ArrayList<>(DiaryNotification.CONTEXT_ATTRIBUTE_COUNT+num_clusters+1);
 
-            List<String> classValues = new ArrayList<>();
+            classValues = new ArrayList<>();
             classValues.add(HIDE_NOTIFICATION);
             classValues.add(SHOW_NOTIFICATION);
             // TODO decide later if you want to use this label
@@ -204,7 +211,7 @@ public class ContentAnalysisService extends Service {
             attributes.add(labelAttr);
 
             // add context variables
-            HashMap<String, ArrayList<String>> attributeValuesMap = extractAttributeValues(notifications);
+            attributeValuesMap = extractAttributeValues(notifications);
 
             for (AttributeWithType context_variable : UnsyncedNotification.getContextVariables()) {
                 if (context_variable.type.equals(DiaryNotification.CONTEXT_VARIABLE_TYPE_STRING)) {
@@ -220,11 +227,10 @@ public class ContentAnalysisService extends Service {
                 attributes.add(new Attribute("wordbin" + i));
             }
 
-            Instances training_data = new Instances("labeled_notifications", attributes, notifications.size());
+            training_data = new Instances("labeled_notifications", attributes, notifications.size());
             training_data.setClassIndex(0);
 
             double word_count;
-            ArrayList<String> words;
             Instance instance;
             // add training data as instances
             for (UnsyncedNotification n : notifications) {
@@ -306,8 +312,9 @@ public class ContentAnalysisService extends Service {
             return training_data;
         }
 
+        HashMap<String, ArrayList<String>> result;
         private HashMap<String, ArrayList<String>> extractAttributeValues(ArrayList<UnsyncedNotification> n) {
-            HashMap<String, ArrayList<String>> result = new HashMap<>();
+            result = new HashMap<>();
 
             for (UnsyncedNotification notification : n) {
                 for (AttributeWithType context_variable : UnsyncedNotification.getContextVariables()) {

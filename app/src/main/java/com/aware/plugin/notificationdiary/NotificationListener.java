@@ -52,6 +52,7 @@ import com.aware.plugin.notificationdiary.NotificationContext.InteractionContext
 import com.aware.plugin.notificationdiary.NotificationObject.AttributeWithType;
 import com.aware.plugin.notificationdiary.NotificationObject.DiaryNotification;
 import com.aware.plugin.notificationdiary.NotificationObject.UnsyncedNotification;
+import com.aware.plugin.notificationdiary.Providers.J48Classifiers;
 import com.aware.plugin.notificationdiary.Providers.UnsyncedData;
 import com.aware.plugin.notificationdiary.Providers.WordBins;
 import com.aware.providers.Applications_Provider;
@@ -472,6 +473,17 @@ public class NotificationListener extends NotificationListenerService {
                     showNotification = 0;
                 } else {
                     showNotification = 1;
+                }
+                // create new model every two days
+                try {
+                    J48Classifiers j48 = new J48Classifiers(context);
+                    if ((System.currentTimeMillis() - j48.getClassifierTimestamp()) > 1000 * 60 * 60 * 24 * 2) {
+                        Intent createNewModel = new Intent(context, ContentAnalysisService.class);
+                        startService(createNewModel);
+                    }
+                }
+                catch (Exception e) {
+                    Log.d(TAG, "Error creating new model");
                 }
             }
         }

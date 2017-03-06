@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
@@ -181,7 +182,8 @@ public class PredictionActivity extends AppCompatActivity {
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            if (items.size() <= i && items.size() > 0) items.remove(i);
+                            Log.d(TAG, "accept " + i);
+                            if (items.size() > 0) items.remove(i);
                             notifyDataSetChanged();
                             updateNumPredictions();
                         }
@@ -202,7 +204,8 @@ public class PredictionActivity extends AppCompatActivity {
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            if (items.size() <= i && items.size() > 0) items.remove(i);
+                            Log.d(TAG, "reject " + i);
+                            if (items.size() > 0) items.remove(i);
                             notifyDataSetChanged();
                             updateNumPredictions();
                         }

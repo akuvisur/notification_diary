@@ -51,6 +51,8 @@ public class Plugin extends Aware_Plugin {
         if (AppManagement.getSoundControlAllowed(this) && !isMyServiceRunning(NotificationAlarmManager.class, this)) startService(new Intent(this, NotificationAlarmManager.class));
         if (!isMyServiceRunning(NotificationListener.class, this)) startService(new Intent(this, NotificationListener.class));
 
+        startService(new Intent(this, ProviderSyncService.class));
+
         return super.onStartCommand(intent, flags, startId);
     }
 
